@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
       .eq('id', targetUserId);
 
     if (perfilError) {
-      return new Response(JSON.stringify({ error: perfilError.message }), {
+      console.error('eliminar-empleado: error al borrar perfil', perfilError);
+      return new Response(JSON.stringify({ error: 'No se pudo eliminar la cuenta' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -112,7 +113,8 @@ Deno.serve(async (req) => {
 
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
     if (deleteError) {
-      return new Response(JSON.stringify({ error: deleteError.message }), {
+      console.error('eliminar-empleado: error al borrar cuenta de Auth', deleteError);
+      return new Response(JSON.stringify({ error: 'No se pudo eliminar la cuenta' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

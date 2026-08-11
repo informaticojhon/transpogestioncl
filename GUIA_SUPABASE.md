@@ -1,5 +1,18 @@
 # 🔥 Guía Completa: Configurar Supabase para TranspoGestión CL
 
+> ⚠️ **Actualizado 2026-08-11:** esta guía se escribió antes de agregar
+> multi-empresa, gestión de personal/materiales y varias correcciones
+> de seguridad. El "Paso 2" de abajo (tablas `usuarios`/`servicios`)
+> sigue sirviendo como punto de partida, pero **después** de seguirlo
+> hay que ejecutar, en este orden, los scripts en la raíz del proyecto:
+> `SETUP_PERSONAL.sql` → `SETUP_MATERIALES.sql` → `SETUP_MULTIEMPRESA.sql`
+> → `FIX_CASCADA_USUARIOS.sql` → `FIX_SEGURIDAD.sql` → `FIX_PAGINACION.sql`.
+> Sin esos scripts el proyecto queda con el modelo viejo de "un usuario,
+> sus propios datos" (sin empresas ni control de roles) y sin las
+> validaciones agregadas después. El snippet de `register()` del Paso 7
+> también quedó desactualizado — usa el código real en
+> `lib/repositories/supabase_repository.dart`, no lo de acá.
+
 ## 📋 Requisitos Previos
 - ✅ Cuenta de Supabase creada
 - ✅ Organización: **jhonchiguaydev**
@@ -288,11 +301,14 @@ class SupabaseRepository {
       }
       
       // 2. Guardar datos adicionales en tabla usuarios
+      // (NO se guarda la contraseña acá: Supabase Auth ya la maneja
+      // de forma segura. Ver la nota al inicio de esta guía — el
+      // registro real hoy también crea/une una empresa, revisa
+      // lib/repositories/supabase_repository.dart para el flujo completo)
       await supabase.from('usuarios').insert({
         'id': response.user!.id,
         'nombre': nombre,
         'email': email,
-        'password': password, // En producción usar hash
       });
       
     } catch (e) {

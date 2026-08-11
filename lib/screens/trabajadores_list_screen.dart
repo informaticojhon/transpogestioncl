@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/trabajador.dart';
+import '../repositories/auth_repository.dart';
 import '../repositories/personal_repository.dart';
 import 'trabajador_form_screen.dart';
 import 'trabajador_detalle_screen.dart';
@@ -13,15 +14,29 @@ class TrabajadoresListScreen extends StatefulWidget {
 
 class _TrabajadoresListScreenState extends State<TrabajadoresListScreen> {
   final _repository = PersonalRepository();
+  final _authRepository = AuthRepository();
   List<Trabajador> _trabajadores = [];
   List<Trabajador> _trabajadoresFiltrados = [];
   bool _isLoading = true;
   bool _soloActivos = true;
+  bool _esAdmin = true;
   final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _verificarAccesoYCargar();
+  }
+
+  Future<void> _verificarAccesoYCargar() async {
+    final rol = await _authRepository.getRolUsuario();
+    if (rol != 'admin') {
+      setState(() {
+        _esAdmin = false;
+        _isLoading = false;
+      });
+      return;
+    }
     _cargarTrabajadores();
   }
 
@@ -153,6 +168,28 @@ class _TrabajadoresListScreenState extends State<TrabajadoresListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_esAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Gestión de Personal')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'Solo los administradores de la empresa pueden acceder a esta sección',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Personal'),

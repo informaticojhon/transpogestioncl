@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/material_item.dart';
+import '../repositories/auth_repository.dart';
 import '../repositories/materiales_repository.dart';
 import 'material_form_screen.dart';
 import 'material_detalle_screen.dart';
@@ -13,15 +14,29 @@ class MaterialesListScreen extends StatefulWidget {
 
 class _MaterialesListScreenState extends State<MaterialesListScreen> {
   final _repository = MaterialesRepository();
+  final _authRepository = AuthRepository();
   List<MaterialItem> _materiales = [];
   List<MaterialItem> _materialesFiltrados = [];
   bool _isLoading = true;
   bool _soloActivos = true;
+  bool _esAdmin = true;
   final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _verificarAccesoYCargar();
+  }
+
+  Future<void> _verificarAccesoYCargar() async {
+    final rol = await _authRepository.getRolUsuario();
+    if (rol != 'admin') {
+      setState(() {
+        _esAdmin = false;
+        _isLoading = false;
+      });
+      return;
+    }
     _cargarMateriales();
   }
 
@@ -150,6 +165,28 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_esAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Gestión de Materiales')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'Solo los administradores de la empresa pueden acceder a esta sección',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Materiales'),

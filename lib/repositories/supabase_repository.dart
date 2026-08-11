@@ -293,10 +293,15 @@ class SupabaseRepository {
     var query = supabase.from('servicios').select().eq('empresa_id', empresaId);
 
     if (busqueda != null && busqueda.trim().isNotEmpty) {
-      final termino = busqueda.trim();
-      query = query.or(
-        'empresa.ilike.%$termino%,quien.ilike.%$termino%,tipo.ilike.%$termino%',
-      );
+      // ',', '(' y ')' tienen significado especial en la sintaxis de
+      // filtros de PostgREST (separan condiciones dentro de .or()); se
+      // quitan para que el texto de búsqueda no pueda romper el filtro.
+      final termino = busqueda.trim().replaceAll(RegExp(r'[,()]'), '');
+      if (termino.isNotEmpty) {
+        query = query.or(
+          'empresa.ilike.%$termino%,quien.ilike.%$termino%,tipo.ilike.%$termino%',
+        );
+      }
     }
 
     final response = await query

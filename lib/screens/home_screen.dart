@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool cargando = true;
   String? error;
   String? nombreUsuario;
+  bool esAdmin = false;
   WeatherInfo? _clima;
 
   @override
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> obtenerServicios({bool mostrarCargando = true}) async {
     nombreUsuario = await _authRepository.getNombreUsuario();
+    esAdmin = (await _authRepository.getRolUsuario()) == 'admin';
 
     if (mostrarCargando) {
       setState(() {
@@ -124,10 +126,12 @@ class _HomeScreenState extends State<HomeScreen> {
             () => Navigator.pushNamed(context, '/reporte_mensual')),
         _NavEntry(Icons.history, 'Historial',
             () => Navigator.pushNamed(context, '/historial')),
-        _NavEntry(Icons.people, 'Gestión de Personal',
-            () => Navigator.pushNamed(context, '/trabajadores')),
-        _NavEntry(Icons.inventory_2, 'Gestión de Materiales',
-            () => Navigator.pushNamed(context, '/materiales')),
+        if (esAdmin)
+          _NavEntry(Icons.people, 'Gestión de Personal',
+              () => Navigator.pushNamed(context, '/trabajadores')),
+        if (esAdmin)
+          _NavEntry(Icons.inventory_2, 'Gestión de Materiales',
+              () => Navigator.pushNamed(context, '/materiales')),
         _NavEntry(Icons.groups_outlined, 'Gestionar mi equipo',
             () => Navigator.pushNamed(context, '/equipo')),
       ];
