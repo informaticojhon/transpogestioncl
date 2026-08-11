@@ -1,0 +1,46 @@
+name: transporte_app
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  http: ^0.13.5
+  pdf: ^3.10.4
+  printing: ^5.12.0
+  shared_preferences: ^2.2.1
+  # path_provider: ^2.0.12  # Removido - no necesario con Supabase
+  # sqflite: ^2.3.0  # Removido - no compatible con web, usando Supabase
+  path: ^1.8.3
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.12.0
+  universal_html: ^2.2.4  # Para funcionalidad web específica
+  geolocator: ^14.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/app_icon.png"
+  adaptive_icon_background: "#1976D2"
+  adaptive_icon_foreground: "assets/app_icon_foreground.png"
+

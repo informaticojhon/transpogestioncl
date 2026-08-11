@@ -1,0 +1,22 @@
+═══════════════════════════════════════
+    ACCESO A TRANSPOGESTIÓN CL
+═══════════════════════════════════════
+
+⚠️ ESTE ARCHIVO YA NO APLICA (actualizado 2026-08-09)
+
+Antes existía un código fijo (TRANSPO2026) compartido por todos los
+usuarios. Se reemplazó por soporte multi-empresa: cada empresa tiene
+su propio código de invitación, generado automáticamente.
+
+📝 CÓMO FUNCIONA AHORA:
+
+1. La primera persona de una empresa se registra eligiendo
+   "Crear empresa" e ingresa el nombre de su negocio.
+2. La app le muestra un código de invitación único para esa empresa
+   (también visible después en el menú "Gestionar mi equipo").
+3. El resto del equipo se registra eligiendo "Unirme" e ingresando
+   ese código — así todos comparten los mismos datos de la empresa.
+
+No hay ningún código fijo que configurar en el código fuente.
+
+Ver SETUP_MULTIEMPRESA.sql para el detalle técnico de esta migración.
