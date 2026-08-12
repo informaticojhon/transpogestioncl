@@ -125,3 +125,16 @@ CREATE POLICY "Solo admin elimina movimientos"
 -- ============================================
 ALTER TABLE trabajadores ADD CONSTRAINT trabajadores_salario_base_check CHECK (salario_base >= 0);
 ALTER TABLE materiales ADD CONSTRAINT materiales_stock_inicial_check CHECK (stock_inicial >= 0);
+
+-- ============================================
+-- 8. USUARIOS: "Gestionar mi equipo" también queda solo para admin
+--
+-- Todo usuario sigue pudiendo ver SU PROPIA fila (lo necesita la app
+-- para saber su nombre/rol/empresa apenas inicia sesión), pero ver
+-- a los DEMÁS miembros de la empresa (el listado de "Gestionar mi
+-- equipo") pasa a ser exclusivo de admins.
+-- ============================================
+DROP POLICY IF EXISTS "Los usuarios pueden ver su empresa" ON usuarios;
+CREATE POLICY "Ver mi propia fila o, si soy admin, todo mi equipo"
+  ON usuarios FOR SELECT
+  USING (id = auth.uid() OR (empresa_id = get_empresa_id() AND get_rol() = 'admin'));

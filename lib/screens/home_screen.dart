@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../repositories/servicios_repository.dart';
 import '../repositories/auth_repository.dart';
@@ -32,14 +33,17 @@ class _HomeScreenState extends State<HomeScreen> {
   bool cargando = true;
   String? error;
   String? nombreUsuario;
+  String? nombreEmpresa;
   bool esAdmin = false;
   WeatherInfo? _clima;
+  List<({DateTime mes, int total})> _ingresosPorMes = [];
 
   @override
   void initState() {
     super.initState();
     obtenerServicios();
     _cargarClima();
+    _cargarIngresosPorMes();
   }
 
   Future<void> _cargarClima() async {
@@ -47,9 +51,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _clima = clima);
   }
 
+  Future<void> _cargarIngresosPorMes() async {
+    try {
+      final ingresos = await _serviciosRepository.obtenerIngresosPorMes(meses: 6);
+      if (mounted) setState(() => _ingresosPorMes = ingresos);
+    } catch (_) {
+      // El gráfico simplemente no se muestra si esto falla; no es crítico
+      // para el resto del panel principal.
+    }
+  }
+
   Future<void> obtenerServicios({bool mostrarCargando = true}) async {
     nombreUsuario = await _authRepository.getNombreUsuario();
     esAdmin = (await _authRepository.getRolUsuario()) == 'admin';
+    final empresa = await _authRepository.getMiEmpresa();
+    nombreEmpresa = empresa?.nombre;
 
     if (mostrarCargando) {
       setState(() {
@@ -132,8 +148,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (esAdmin)
           _NavEntry(Icons.inventory_2, 'Gestión de Materiales',
               () => Navigator.pushNamed(context, '/materiales')),
-        _NavEntry(Icons.groups_outlined, 'Gestionar mi equipo',
-            () => Navigator.pushNamed(context, '/equipo')),
+        if (esAdmin)
+          _NavEntry(Icons.groups_outlined, 'Gestionar mi equipo',
+              () => Navigator.pushNamed(context, '/equipo')),
       ];
 
   @override
@@ -378,6 +395,14 @@ class _HomeScreenState extends State<HomeScreen> {
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
+            if (nombreEmpresa != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                nombreEmpresa!,
+                style: TextStyle(fontSize: 13, color: colorScheme.primary, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: 8),
             Text(
               '¿Qué deseas hacer hoy?',
@@ -443,6 +468,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(_saludoNombre, style: Theme.of(context).textTheme.headlineSmall),
+                        if (nombreEmpresa != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            nombreEmpresa!,
+                            style: TextStyle(fontSize: 13, color: colorScheme.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         Text(
                           '¿Qué deseas hacer hoy?',
@@ -480,6 +512,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+            if (_ingresosPorMes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: _buildIngresosChart(context),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Row(
@@ -541,6 +578,98 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIngresosChart(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final maxTotal = _ingresosPorMes.map((e) => e.total).fold<int>(0, (a, b) => a > b ? a : b);
+    final maxY = maxTotal == 0 ? 1000.0 : maxTotal * 1.2;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 20, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ingresos por mes', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 180,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxY,
+                  alignment: BarChartAlignment.spaceAround,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: maxY / 4,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: colorScheme.onSurface.withValues(alpha: 0.08),
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= _ingresosPorMes.length) {
+                            return const SizedBox.shrink();
+                          }
+                          final mes = _ingresosPorMes[index].mes;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              DateFormat('MMM', 'es_CL').format(mes),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => colorScheme.primary,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final mes = _ingresosPorMes[group.x.toInt()].mes;
+                        final label = DateFormat("MMMM 'de' y", 'es_CL').format(mes);
+                        return BarTooltipItem(
+                          '$label\n${formatoCLP(rod.toY.round())}',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                        );
+                      },
+                    ),
+                  ),
+                  barGroups: [
+                    for (var i = 0; i < _ingresosPorMes.length; i++)
+                      BarChartGroupData(
+                        x: i,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _ingresosPorMes[i].total.toDouble(),
+                            color: colorScheme.primary,
+                            width: 22,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
             ),

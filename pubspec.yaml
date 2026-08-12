@@ -25,6 +25,7 @@ dependencies:
   supabase_flutter: ^2.12.0
   universal_html: ^2.2.4  # Para funcionalidad web específica
   geolocator: ^14.0.2
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

@@ -62,6 +62,28 @@ class _EquipoScreenState extends State<EquipoScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
+    if (!_isLoading && _miRol != 'admin') {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Gestionar mi equipo')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'Solo los administradores de la empresa pueden acceder a esta sección',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestionar mi equipo'),

@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../repositories/servicios_repository.dart';
 import 'registro_servicio_screen.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/csv_exporter.dart';
 
 const int _kPorPagina = 30;
 
@@ -25,6 +26,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
   bool _cargando = true;
   bool _cargandoMas = false;
   bool _hayMas = true;
+  bool _exportando = false;
   String _busqueda = '';
   String? _error;
 
@@ -187,6 +189,47 @@ class _HistorialScreenState extends State<HistorialScreen> {
     }
   }
 
+  Future<void> _exportarCsv() async {
+    setState(() => _exportando = true);
+    try {
+      final servicios = await _serviciosRepository.obtenerTodosParaExportar(
+        busqueda: _busqueda.isEmpty ? null : _busqueda,
+      );
+
+      if (servicios.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No hay servicios para exportar')),
+          );
+        }
+        return;
+      }
+
+      final filas = <List<dynamic>>[
+        ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'],
+        for (final s in servicios)
+          [s['fecha'], s['empresa'] ?? '', s['quien'] ?? '', s['tipo'] ?? '', s['valor'] ?? 0],
+      ];
+
+      final hoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      exportarCsv('historial_servicios_$hoy.csv', filas);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${servicios.length} servicios exportados')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al exportar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exportando = false);
+    }
+  }
+
   void _mostrarDetalle(dynamic servicio) {
     final formatoFecha = DateFormat('dd/MM/yyyy');
     final fecha = DateTime.parse(servicio['fecha']);
@@ -222,6 +265,18 @@ class _HistorialScreenState extends State<HistorialScreen> {
       appBar: AppBar(
         title: const Text('Historial de Servicios'),
         actions: [
+          if (_servicios.isNotEmpty)
+            IconButton(
+              icon: _exportando
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.file_download_outlined),
+              tooltip: 'Exportar a CSV',
+              onPressed: _exportando ? null : _exportarCsv,
+            ),
           if (_servicios.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_forever),

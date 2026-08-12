@@ -20,6 +20,7 @@ class _MaterialFormScreenState extends State<MaterialFormScreen> {
   late TextEditingController _nombreController;
   late TextEditingController _categoriaController;
   late TextEditingController _stockController;
+  late TextEditingController _stockMinimoController;
   String _unidadMedida = 'unidad';
   bool _activo = true;
   bool _isSaving = false;
@@ -36,6 +37,9 @@ class _MaterialFormScreenState extends State<MaterialFormScreen> {
     _stockController = TextEditingController(
       text: widget.material?.stockInicial.toString() ?? '0',
     );
+    _stockMinimoController = TextEditingController(
+      text: widget.material?.stockMinimo.toString() ?? '0',
+    );
     _unidadMedida = widget.material?.unidadMedida ?? 'unidad';
     _activo = widget.material?.activo ?? true;
   }
@@ -45,6 +49,7 @@ class _MaterialFormScreenState extends State<MaterialFormScreen> {
     _nombreController.dispose();
     _categoriaController.dispose();
     _stockController.dispose();
+    _stockMinimoController.dispose();
     super.dispose();
   }
 
@@ -62,6 +67,9 @@ class _MaterialFormScreenState extends State<MaterialFormScreen> {
             : _categoriaController.text.trim(),
         unidadMedida: _unidadMedida,
         stockInicial: int.parse(_stockController.text.trim()),
+        stockMinimo: int.parse(_stockMinimoController.text.trim().isEmpty
+            ? '0'
+            : _stockMinimoController.text.trim()),
         activo: _activo,
       );
 
@@ -160,6 +168,25 @@ class _MaterialFormScreenState extends State<MaterialFormScreen> {
                     return 'El stock inicial es obligatorio';
                   }
                   if (int.tryParse(value) == null) {
+                    return 'Debe ser un número válido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Stock mínimo (alerta)
+              TextFormField(
+                controller: _stockMinimoController,
+                decoration: const InputDecoration(
+                  labelText: 'Stock mínimo para alertar',
+                  hintText: '0 = sin alerta',
+                  prefixIcon: Icon(Icons.warning_amber_outlined),
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
                     return 'Debe ser un número válido';
                   }
                   return null;

@@ -38,6 +38,17 @@ class MaterialesRepository {
     return (response as List).map((json) => MaterialItem.fromJson(json)).toList();
   }
 
+  /// Stock actual de todos los materiales de la empresa, calculado en el
+  /// servidor en una sola consulta (evita una consulta de movimientos por
+  /// cada material al mostrar la lista completa).
+  Future<Map<int, int>> getStockDeTodos() async {
+    final response = await supabase.rpc('stock_materiales_empresa');
+    final filas = response as List;
+    return {
+      for (final fila in filas) (fila['material_id'] as num).toInt(): (fila['stock_actual'] as num).toInt(),
+    };
+  }
+
   Future<MaterialItem?> getMaterial(int id) async {
     final empresaId = await _getEmpresaId();
 

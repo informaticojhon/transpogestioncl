@@ -279,6 +279,18 @@ class SupabaseRepository {
     };
   }
 
+  /// Total de ingresos por mes de los últimos [meses] meses (incluye meses
+  /// sin servicios como $0), calculado en el servidor para el gráfico
+  /// del panel principal.
+  Future<List<({DateTime mes, int total})>> getIngresosPorMes({int meses = 6}) async {
+    final response = await supabase.rpc('ingresos_por_mes_empresa', params: {'meses': meses});
+    final filas = response as List;
+    return [
+      for (final fila in filas)
+        (mes: DateTime.parse(fila['mes'] as String), total: (fila['total'] as num).toInt()),
+    ];
+  }
+
   /// Servicios paginados para el Historial, con búsqueda hecha en el
   /// servidor (empresa, quién y tipo) en vez de filtrar una lista que
   /// podría no tener todos los datos cargados.
@@ -310,6 +322,28 @@ class SupabaseRepository {
         .range(offset, offset + limit - 1);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Todos los servicios que calzan con [busqueda] (o todos si es null),
+  /// para exportar. Pagina internamente en lotes para no toparse con el
+  /// límite de filas por respuesta de Supabase en empresas con mucho historial.
+  Future<List<Map<String, dynamic>>> getTodosLosServiciosParaExportar({String? busqueda}) async {
+    const tamanoLote = 1000;
+    final todos = <Map<String, dynamic>>[];
+    var offset = 0;
+
+    while (true) {
+      final lote = await buscarServiciosPaginado(
+        offset: offset,
+        limit: tamanoLote,
+        busqueda: busqueda,
+      );
+      todos.addAll(lote);
+      if (lote.length < tamanoLote) break;
+      offset += tamanoLote;
+    }
+
+    return todos;
   }
 
   Future<void> crearServicio({

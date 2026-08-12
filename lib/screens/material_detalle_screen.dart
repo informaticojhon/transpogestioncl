@@ -23,6 +23,11 @@ class _MaterialDetalleScreenState extends State<MaterialDetalleScreen>
   Map<String, dynamic>? _estadisticas;
   bool _isLoading = true;
 
+  bool get _estaConStockBajo {
+    if (widget.material.stockMinimo <= 0 || _estadisticas == null) return false;
+    return (_estadisticas!['stock_actual'] as int) < widget.material.stockMinimo;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -182,6 +187,28 @@ class _MaterialDetalleScreenState extends State<MaterialDetalleScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_estaConStockBajo)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Stock bajo el mínimo configurado',
+                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -196,6 +223,12 @@ class _MaterialDetalleScreenState extends State<MaterialDetalleScreen>
                   _buildInfoRow('Nombre:', widget.material.nombre),
                   _buildInfoRow('Categoría:', widget.material.categoria ?? 'Sin categoría'),
                   _buildInfoRow('Unidad de medida:', widget.material.unidadMedida),
+                  _buildInfoRow(
+                    'Stock mínimo:',
+                    widget.material.stockMinimo > 0
+                        ? '${widget.material.stockMinimo} ${widget.material.unidadMedida}'
+                        : 'Sin alerta configurada',
+                  ),
                   _buildInfoRow(
                     'Estado:',
                     widget.material.activo ? 'Activo' : 'Inactivo',
@@ -225,7 +258,11 @@ class _MaterialDetalleScreenState extends State<MaterialDetalleScreen>
                           'Stock actual',
                           '${_estadisticas!['stock_actual']} ${widget.material.unidadMedida}',
                           Icons.inventory,
-                          (_estadisticas!['stock_actual'] as int) > 0 ? Colors.blue : Colors.red,
+                          (_estadisticas!['stock_actual'] as int) <= 0
+                              ? Colors.red
+                              : _estaConStockBajo
+                                  ? Colors.orange
+                                  : Colors.blue,
                         ),
                         _buildStatCard(
                           'Entradas',

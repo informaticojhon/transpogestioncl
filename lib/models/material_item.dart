@@ -5,6 +5,7 @@ class MaterialItem {
   final String? categoria;
   final String unidadMedida;
   final int stockInicial;
+  final int stockMinimo;
   final bool activo;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -16,6 +17,7 @@ class MaterialItem {
     this.categoria,
     this.unidadMedida = 'unidad',
     this.stockInicial = 0,
+    this.stockMinimo = 0,
     this.activo = true,
     this.createdAt,
     this.updatedAt,
@@ -29,6 +31,7 @@ class MaterialItem {
       categoria: json['categoria'] as String?,
       unidadMedida: json['unidad_medida'] as String? ?? 'unidad',
       stockInicial: json['stock_inicial'] as int? ?? 0,
+      stockMinimo: json['stock_minimo'] as int? ?? 0,
       activo: json['activo'] as bool? ?? true,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
@@ -47,6 +50,7 @@ class MaterialItem {
       'categoria': categoria,
       'unidad_medida': unidadMedida,
       'stock_inicial': stockInicial,
+      'stock_minimo': stockMinimo,
       'activo': activo,
     };
   }

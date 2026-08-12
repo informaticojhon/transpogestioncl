@@ -39,6 +39,14 @@ class ServiciosRepository {
     );
   }
 
+  Future<List<({DateTime mes, int total})>> obtenerIngresosPorMes({int meses = 6}) async {
+    return await _supabaseRepo.getIngresosPorMes(meses: meses);
+  }
+
+  Future<List<dynamic>> obtenerTodosParaExportar({String? busqueda}) async {
+    return await _supabaseRepo.getTodosLosServiciosParaExportar(busqueda: busqueda);
+  }
+
   Future<Map<String, dynamic>> crearServicio({
     required String fecha,
     required int valor,

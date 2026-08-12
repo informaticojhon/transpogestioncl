@@ -17,6 +17,7 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
   final _authRepository = AuthRepository();
   List<MaterialItem> _materiales = [];
   List<MaterialItem> _materialesFiltrados = [];
+  Map<int, int> _stock = {};
   bool _isLoading = true;
   bool _soloActivos = true;
   bool _esAdmin = true;
@@ -49,10 +50,16 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
   Future<void> _cargarMateriales() async {
     setState(() => _isLoading = true);
     try {
-      final materiales = await _repository.getMateriales(soloActivos: _soloActivos);
+      final resultados = await Future.wait([
+        _repository.getMateriales(soloActivos: _soloActivos),
+        _repository.getStockDeTodos(),
+      ]);
+      final materiales = resultados[0] as List<MaterialItem>;
+      final stock = resultados[1] as Map<int, int>;
       setState(() {
         _materiales = materiales;
         _materialesFiltrados = materiales;
+        _stock = stock;
         _isLoading = false;
       });
     } catch (e) {
@@ -63,6 +70,12 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
         );
       }
     }
+  }
+
+  bool _esStockBajo(MaterialItem m) {
+    if (m.stockMinimo <= 0 || m.id == null) return false;
+    final actual = _stock[m.id!] ?? m.stockInicial;
+    return actual < m.stockMinimo;
   }
 
   void _filtrarMateriales(String query) {
@@ -231,6 +244,30 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
               onChanged: _filtrarMateriales,
             ),
           ),
+          if (!_isLoading && _materiales.any(_esStockBajo))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${_materiales.where(_esStockBajo).length} material(es) con stock bajo',
+                        style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -279,6 +316,11 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (_esStockBajo(material))
+                                    const Padding(
+                                      padding: EdgeInsets.only(right: 6),
+                                      child: Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                                    ),
                                   if (!material.activo)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -305,6 +347,13 @@ class _MaterialesListScreenState extends State<MaterialesListScreen> {
                                   const SizedBox(height: 4),
                                   if (material.categoria != null)
                                     Text('Categoría: ${material.categoria}'),
+                                  Text(
+                                    'Stock actual: ${_stock[material.id] ?? material.stockInicial} ${material.unidadMedida}',
+                                    style: TextStyle(
+                                      color: _esStockBajo(material) ? Colors.orange[800] : null,
+                                      fontWeight: _esStockBajo(material) ? FontWeight.w600 : null,
+                                    ),
+                                  ),
                                 ],
                               ),
                               trailing: PopupMenuButton(
