@@ -16,6 +16,7 @@ import 'package:transporte_app/screens/trabajadores_list_screen.dart';
 import 'package:transporte_app/screens/materiales_list_screen.dart';
 import 'package:transporte_app/screens/equipo_screen.dart';
 import 'package:transporte_app/utils/app_theme.dart';
+import 'package:transporte_app/utils/auth_guard.dart';
 import 'package:transporte_app/config/supabase_config.dart';
 
 void main() async {
@@ -91,14 +92,14 @@ class _TransporteAppState extends State<TransporteApp> {
         '/welcome': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomeScreen(), // Ruta explícita para home
-        '/registro_servicio': (context) => const RegistroServicioScreen(),
-        '/reporte_diario': (context) => const ReporteDiarioScreen(),
-        '/reporte_mensual': (context) => const ReporteMensualScreen(),
-        '/historial': (context) => const HistorialScreen(),
-        '/trabajadores': (context) => const TrabajadoresListScreen(),
-        '/materiales': (context) => const MaterialesListScreen(),
-        '/equipo': (context) => const EquipoScreen(),
+        '/home': (context) => const AuthGuard(child: HomeScreen()),
+        '/registro_servicio': (context) => const AuthGuard(child: RegistroServicioScreen()),
+        '/reporte_diario': (context) => const AuthGuard(child: ReporteDiarioScreen()),
+        '/reporte_mensual': (context) => const AuthGuard(child: ReporteMensualScreen()),
+        '/historial': (context) => const AuthGuard(child: HistorialScreen()),
+        '/trabajadores': (context) => const AuthGuard(child: TrabajadoresListScreen()),
+        '/materiales': (context) => const AuthGuard(child: MaterialesListScreen()),
+        '/equipo': (context) => const AuthGuard(child: EquipoScreen()),
       },
     );
   }
