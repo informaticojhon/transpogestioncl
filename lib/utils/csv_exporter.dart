@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:universal_html/html.dart' as html;
+import 'file_downloader.dart';
 
 /// Genera un CSV a partir de [filas] (la primera fila debe ser el
 /// encabezado) y dispara su descarga en el navegador.
@@ -11,12 +11,7 @@ void exportarCsv(String nombreArchivo, List<List<dynamic>> filas) {
 
   // BOM al inicio para que Excel detecte UTF-8 y no rompa las tildes/ñ.
   final bytes = utf8.encode('﻿${buffer.toString()}');
-  final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
-  final url = html.Url.createObjectUrlFromBlob(blob);
-  html.AnchorElement(href: url)
-    ..setAttribute('download', nombreArchivo)
-    ..click();
-  html.Url.revokeObjectUrl(url);
+  descargarArchivo(nombreArchivo, bytes, 'text/csv;charset=utf-8');
 }
 
 String _escaparCampo(dynamic valor) {

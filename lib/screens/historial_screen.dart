@@ -6,8 +6,13 @@ import '../repositories/servicios_repository.dart';
 import 'registro_servicio_screen.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/csv_exporter.dart';
+import '../utils/excel_exporter.dart';
+import '../utils/pdf_exporter.dart';
+import '../utils/docx_exporter.dart';
 
 const int _kPorPagina = 30;
+
+enum _FormatoExport { csv, excel, pdf, docx }
 
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key});
@@ -189,7 +194,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
     }
   }
 
-  Future<void> _exportarCsv() async {
+  Future<void> _exportar(_FormatoExport formato) async {
     setState(() => _exportando = true);
     try {
       final servicios = await _serviciosRepository.obtenerTodosParaExportar(
@@ -205,14 +210,23 @@ class _HistorialScreenState extends State<HistorialScreen> {
         return;
       }
 
-      final filas = <List<dynamic>>[
-        ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'],
-        for (final s in servicios)
-          [s['fecha'], s['empresa'] ?? '', s['quien'] ?? '', s['tipo'] ?? '', s['valor'] ?? 0],
-      ];
-
       final hoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      exportarCsv('historial_servicios_$hoy.csv', filas);
+
+      switch (formato) {
+        case _FormatoExport.csv:
+          final filas = <List<dynamic>>[
+            ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'],
+            for (final s in servicios)
+              [s['fecha'], s['empresa'] ?? '', s['quien'] ?? '', s['tipo'] ?? '', s['valor'] ?? 0],
+          ];
+          exportarCsv('historial_servicios_$hoy.csv', filas);
+        case _FormatoExport.excel:
+          exportarExcelServicios('historial_servicios_$hoy.xlsx', servicios);
+        case _FormatoExport.pdf:
+          await exportarPdfServicios('historial_servicios_$hoy.pdf', servicios);
+        case _FormatoExport.docx:
+          exportarDocxServicios('historial_servicios_$hoy.docx', servicios);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -266,17 +280,62 @@ class _HistorialScreenState extends State<HistorialScreen> {
         title: const Text('Historial de Servicios'),
         actions: [
           if (_servicios.isNotEmpty)
-            IconButton(
-              icon: _exportando
-                  ? const SizedBox(
+            _exportando
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.file_download_outlined),
-              tooltip: 'Exportar a CSV',
-              onPressed: _exportando ? null : _exportarCsv,
-            ),
+                    ),
+                  )
+                : PopupMenuButton<_FormatoExport>(
+                    icon: const Icon(Icons.file_download_outlined),
+                    tooltip: 'Exportar',
+                    onSelected: _exportar,
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _FormatoExport.excel,
+                        child: Row(
+                          children: [
+                            Icon(Icons.grid_on, size: 20),
+                            SizedBox(width: 8),
+                            Text('Excel (.xlsx)'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _FormatoExport.pdf,
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf_outlined, size: 20),
+                            SizedBox(width: 8),
+                            Text('PDF'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _FormatoExport.docx,
+                        child: Row(
+                          children: [
+                            Icon(Icons.description_outlined, size: 20),
+                            SizedBox(width: 8),
+                            Text('Word (.docx)'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _FormatoExport.csv,
+                        child: Row(
+                          children: [
+                            Icon(Icons.table_rows_outlined, size: 20),
+                            SizedBox(width: 8),
+                            Text('CSV'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
           if (_servicios.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_forever),
