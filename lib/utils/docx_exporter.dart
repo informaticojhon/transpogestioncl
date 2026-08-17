@@ -1,35 +1,29 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'file_downloader.dart';
+import 'servicio_grouping.dart';
 
-/// Anchos de columna en dxa (1440 dxa = 1 pulgada): Fecha, Empresa,
-/// Quién, Tipo, Valor. Suman ~6.1", cómodo dentro de una hoja carta/A4.
-const List<int> _anchosColumnas = [1500, 2400, 1700, 1700, 1500];
+/// Anchos de columna en dxa (1440 dxa = 1 pulgada): Fecha, Quién, Tipo,
+/// Valor (la empresa ahora es el encabezado de cada sección, no una
+/// columna). Suman ~5.3", cómodo dentro de una hoja carta/A4.
+const List<int> _anchosColumnas = [1600, 2200, 2200, 1600];
 
-/// Genera un .docx mínimo (sin depender de una plantilla) con una tabla
-/// del historial de servicios, y dispara su descarga.
+/// Genera un .docx mínimo (sin depender de una plantilla) con el
+/// historial de servicios agrupado por empresa cliente (encabezado de
+/// sección + tabla + subtotal por cada una, y total general al final),
+/// y dispara su descarga.
 ///
 /// Un .docx es, por dentro, un .zip con archivos XML en rutas fijas que
 /// exige el estándar OOXML de Word. Se arma esa estructura a mano con el
 /// paquete `archive` en vez de depender de una plantilla binaria.
 void exportarDocxServicios(String nombreArchivo, List<dynamic> servicios) {
-  var totalGeneral = 0;
-  final filasTabla = StringBuffer();
+  final totalGeneral = servicios.fold<int>(0, (sum, s) => sum + ((s['valor'] as num?)?.toInt() ?? 0));
+  final grupos = agruparServiciosPorEmpresa(servicios);
+  final secciones = StringBuffer();
 
-  for (final s in servicios) {
-    final m = s as Map;
-    final valor = (m['valor'] as num?)?.toInt() ?? 0;
-    totalGeneral += valor;
-    filasTabla.write(_filaTabla([
-      m['fecha']?.toString() ?? '',
-      m['empresa']?.toString() ?? '',
-      m['quien']?.toString() ?? '',
-      m['tipo']?.toString() ?? '',
-      _formatearValor(valor),
-    ]));
+  for (final grupo in grupos.entries) {
+    secciones.write(_seccionEmpresa(grupo.key, grupo.value));
   }
-
-  final gridCols = _anchosColumnas.map((w) => '<w:gridCol w:w="$w"/>').join();
 
   final documentoXml = '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -37,29 +31,8 @@ void exportarDocxServicios(String nombreArchivo, List<dynamic> servicios) {
   <w:body>
     <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t>Historial de Servicios</w:t></w:r></w:p>
     <w:p/>
-    <w:tbl>
-      <w:tblPr>
-        <w:tblW w:w="0" w:type="auto"/>
-        <w:tblBorders>
-          <w:top w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
-          <w:left w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
-          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
-          <w:right w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
-          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
-          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
-        </w:tblBorders>
-        <w:tblCellMar>
-          <w:top w:w="80" w:type="dxa"/>
-          <w:bottom w:w="80" w:type="dxa"/>
-          <w:left w:w="120" w:type="dxa"/>
-          <w:right w:w="120" w:type="dxa"/>
-        </w:tblCellMar>
-      </w:tblPr>
-      <w:tblGrid>$gridCols</w:tblGrid>
-      ${_filaTabla(['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'], encabezado: true, fill: '2454FF', letraBlanca: true)}
-      $filasTabla
-      ${_filaTabla(['', '', '', 'Total', _formatearValor(totalGeneral)], encabezado: true, fill: 'EAEFFF')}
-    </w:tbl>
+    $secciones
+    <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>Total general: ${_formatearValor(totalGeneral)}</w:t></w:r></w:p>
     <w:sectPr/>
   </w:body>
 </w:document>
@@ -94,6 +67,51 @@ void exportarDocxServicios(String nombreArchivo, List<dynamic> servicios) {
     bytes,
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   );
+}
+
+String _seccionEmpresa(String empresa, List<dynamic> filas) {
+  final totalEmpresa = filas.fold<int>(0, (sum, s) => sum + ((s['valor'] as num?)?.toInt() ?? 0));
+  final gridCols = _anchosColumnas.map((w) => '<w:gridCol w:w="$w"/>').join();
+  final filasTabla = StringBuffer();
+
+  for (final s in filas) {
+    final m = s as Map;
+    final valor = (m['valor'] as num?)?.toInt() ?? 0;
+    filasTabla.write(_filaTabla([
+      m['fecha']?.toString() ?? '',
+      m['quien']?.toString() ?? '',
+      m['tipo']?.toString() ?? '',
+      _formatearValor(valor),
+    ]));
+  }
+
+  return '''
+    <w:p><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="D9E2FF"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_escaparXml(empresa)} · ${filas.length} servicio(s)</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="0" w:type="auto"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:left w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:right w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="80" w:type="dxa"/>
+          <w:bottom w:w="80" w:type="dxa"/>
+          <w:left w:w="120" w:type="dxa"/>
+          <w:right w:w="120" w:type="dxa"/>
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>$gridCols</w:tblGrid>
+      ${_filaTabla(['Fecha', 'Quién', 'Tipo', 'Valor'], encabezado: true, fill: 'F2F4FA')}
+      $filasTabla
+    </w:tbl>
+    <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Subtotal ${_escaparXml(empresa)}: ${_formatearValor(totalEmpresa)}</w:t></w:r></w:p>
+    <w:p/>
+''';
 }
 
 void _agregarArchivoTexto(Archive archivo, String ruta, String contenido) {

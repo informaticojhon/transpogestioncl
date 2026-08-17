@@ -1,9 +1,11 @@
 import 'package:excel/excel.dart';
 import 'file_downloader.dart';
+import 'servicio_grouping.dart';
 
-/// Genera un .xlsx con el historial de servicios: encabezado en negrita
-/// con fondo de color, columnas con ancho ajustado a su contenido, bordes
-/// en toda la tabla, montos con separador de miles, y fila de total.
+/// Genera un .xlsx con el historial de servicios, agrupado por empresa
+/// cliente: encabezado en negrita con fondo de color, columnas con ancho
+/// ajustado, bordes en toda la tabla, montos con separador de miles,
+/// subtotal por empresa y total general al final.
 void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
   final libro = Excel.createExcel();
   const nombreHoja = 'Servicios';
@@ -36,6 +38,9 @@ void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
   );
   final estiloCelda = conBorde();
   final estiloCeldaNumero = conBorde(formato: NumFormat.standard_3); // "#,##0"
+  final estiloSubtotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#F2F4FA'));
+  final estiloSubtotalNumero =
+      conBorde(bold: true, fondo: ExcelColor.fromHexString('#F2F4FA'), formato: NumFormat.standard_3);
   final estiloTotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'));
   final estiloTotalNumero = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'), formato: NumFormat.standard_3);
 
@@ -46,46 +51,66 @@ void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
     celda.cellStyle = estiloEncabezado;
   }
 
+  var filaExcel = 1;
   var totalGeneral = 0;
-  for (var fila = 0; fila < servicios.length; fila++) {
-    final s = servicios[fila] as Map;
-    final valor = (s['valor'] as num?)?.toInt() ?? 0;
-    totalGeneral += valor;
-    final filaExcel = fila + 1;
+  final grupos = agruparServiciosPorEmpresa(servicios);
 
-    final textos = [
-      s['fecha']?.toString() ?? '',
-      s['empresa']?.toString() ?? '',
-      s['quien']?.toString() ?? '',
-      s['tipo']?.toString() ?? '',
-    ];
-    for (var col = 0; col < textos.length; col++) {
-      hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-        ..value = TextCellValue(textos[col])
-        ..cellStyle = estiloCelda;
+  for (final grupo in grupos.entries) {
+    var totalEmpresa = 0;
+
+    for (final s in grupo.value) {
+      final m = s as Map;
+      final valor = (m['valor'] as num?)?.toInt() ?? 0;
+      totalEmpresa += valor;
+      totalGeneral += valor;
+
+      final textos = [
+        m['fecha']?.toString() ?? '',
+        m['empresa']?.toString() ?? '',
+        m['quien']?.toString() ?? '',
+        m['tipo']?.toString() ?? '',
+      ];
+      for (var col = 0; col < textos.length; col++) {
+        hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
+          ..value = TextCellValue(textos[col])
+          ..cellStyle = estiloCelda;
+      }
+      hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
+        ..value = IntCellValue(valor)
+        ..cellStyle = estiloCeldaNumero;
+      filaExcel++;
     }
+
+    for (var col = 0; col < 3; col++) {
+      hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
+        ..value = TextCellValue('')
+        ..cellStyle = estiloSubtotal;
+    }
+    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel))
+      ..value = TextCellValue('Subtotal ${grupo.key}')
+      ..cellStyle = estiloSubtotal;
     hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-      ..value = IntCellValue(valor)
-      ..cellStyle = estiloCeldaNumero;
+      ..value = IntCellValue(totalEmpresa)
+      ..cellStyle = estiloSubtotalNumero;
+    filaExcel++;
   }
 
-  final filaTotal = servicios.length + 1;
   for (var col = 0; col < 3; col++) {
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaTotal))
+    hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
       ..value = TextCellValue('')
       ..cellStyle = estiloTotal;
   }
-  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaTotal))
-    ..value = TextCellValue('Total')
+  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel))
+    ..value = TextCellValue('Total general')
     ..cellStyle = estiloTotal;
-  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaTotal))
+  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
     ..value = IntCellValue(totalGeneral)
     ..cellStyle = estiloTotalNumero;
 
   hoja.setColumnWidth(0, 14);
   hoja.setColumnWidth(1, 24);
   hoja.setColumnWidth(2, 20);
-  hoja.setColumnWidth(3, 20);
+  hoja.setColumnWidth(3, 22);
   hoja.setColumnWidth(4, 16);
 
   final bytes = libro.encode();

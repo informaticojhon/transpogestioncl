@@ -10,6 +10,7 @@ import '../utils/excel_exporter.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/docx_exporter.dart';
 import '../utils/empresa_colors.dart';
+import '../utils/servicio_grouping.dart';
 
 const int _kPorPagina = 30;
 
@@ -218,10 +219,13 @@ class _HistorialScreenState extends State<HistorialScreen> {
   Future<void> _exportar(_FormatoExport formato) async {
     setState(() => _exportando = true);
     try {
-      final servicios = await _serviciosRepository.obtenerTodosParaExportar(
+      final serviciosSinOrdenar = await _serviciosRepository.obtenerTodosParaExportar(
         busqueda: _busqueda.isEmpty ? null : _busqueda,
         empresaCliente: _empresaFiltro,
       );
+      // Ordenados por empresa cliente para que las cuatro exportaciones
+      // queden organizadas de forma consistente (no mezcladas por fecha).
+      final servicios = ordenarServiciosPorEmpresa(serviciosSinOrdenar);
 
       if (servicios.isEmpty) {
         if (mounted) {
