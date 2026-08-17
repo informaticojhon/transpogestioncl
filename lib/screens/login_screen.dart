@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../repositories/auth_repository.dart';
+import '../utils/login_lockout.dart';
 import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,9 +18,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authRepository = AuthRepository();
   bool cargando = false;
   String? error;
+  Duration? _bloqueoRestante;
+  Timer? _timerBloqueo;
+
+  @override
+  void dispose() {
+    _timerBloqueo?.cancel();
+    super.dispose();
+  }
 
   Future<void> login() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final email = emailController.text.trim();
+    final restante = await LoginLockout.tiempoRestante(email);
+    if (restante != null) {
+      _activarBloqueo(restante);
+      return;
+    }
 
     setState(() {
       cargando = true;
@@ -26,21 +43,50 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _authRepository.login(
-        emailController.text.trim(),
-        passwordController.text,
-      );
+      await _authRepository.login(email, passwordController.text);
+      await LoginLockout.reset(email);
 
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
-      setState(() => error = e.toString());
+      final bloqueo = await LoginLockout.registrarIntentoFallido(email);
+      if (!mounted) return;
+      if (bloqueo != null) {
+        _activarBloqueo(bloqueo);
+      } else {
+        setState(() => error = e.toString());
+      }
     } finally {
       if (mounted) {
         setState(() => cargando = false);
       }
     }
+  }
+
+  void _activarBloqueo(Duration duracion) {
+    _timerBloqueo?.cancel();
+    setState(() => _bloqueoRestante = duracion);
+    _timerBloqueo = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final restante = _bloqueoRestante;
+      if (restante == null) {
+        timer.cancel();
+        return;
+      }
+      final nuevoRestante = restante - const Duration(seconds: 1);
+      if (nuevoRestante.inSeconds <= 0) {
+        timer.cancel();
+        setState(() => _bloqueoRestante = null);
+      } else {
+        setState(() => _bloqueoRestante = nuevoRestante);
+      }
+    });
+  }
+
+  String _formatearDuracion(Duration d) {
+    final segundos = d.inSeconds;
+    if (segundos >= 60) return '${(segundos / 60).ceil()} min';
+    return '$segundos s';
   }
 
   @override
@@ -106,14 +152,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: cargando ? null : login,
+                          onPressed: (cargando || _bloqueoRestante != null) ? null : login,
                           child: cargando
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                 )
-                              : const Text('Entrar'),
+                              : Text(_bloqueoRestante != null
+                                  ? 'Bloqueado (${_formatearDuracion(_bloqueoRestante!)})'
+                                  : 'Entrar'),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -121,7 +169,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: cargando ? null : () => Navigator.pushNamed(context, '/register'),
                         child: const Text('¿No tienes cuenta? Regístrate'),
                       ),
-                      if (error != null)
+                      if (_bloqueoRestante != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: colorScheme.errorContainer,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              'Demasiados intentos fallidos. Intenta nuevamente en '
+                              '${_formatearDuracion(_bloqueoRestante!)}.',
+                              style: TextStyle(color: colorScheme.onErrorContainer),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      else if (error != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Container(
