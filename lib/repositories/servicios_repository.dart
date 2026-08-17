@@ -31,11 +31,13 @@ class ServiciosRepository {
     required int offset,
     required int limit,
     String? busqueda,
+    String? empresaCliente,
   }) async {
     return await _supabaseRepo.buscarServiciosPaginado(
       offset: offset,
       limit: limit,
       busqueda: busqueda,
+      empresaCliente: empresaCliente,
     );
   }
 
@@ -43,8 +45,15 @@ class ServiciosRepository {
     return await _supabaseRepo.getIngresosPorMes(meses: meses);
   }
 
-  Future<List<dynamic>> obtenerTodosParaExportar({String? busqueda}) async {
-    return await _supabaseRepo.getTodosLosServiciosParaExportar(busqueda: busqueda);
+  Future<List<dynamic>> obtenerTodosParaExportar({String? busqueda, String? empresaCliente}) async {
+    return await _supabaseRepo.getTodosLosServiciosParaExportar(
+      busqueda: busqueda,
+      empresaCliente: empresaCliente,
+    );
+  }
+
+  Future<List<String>> obtenerEmpresasClientesUnicas() async {
+    return await _supabaseRepo.getEmpresasClientesUnicas();
   }
 
   Future<Map<String, dynamic>> crearServicio({

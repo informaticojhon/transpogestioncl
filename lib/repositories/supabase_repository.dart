@@ -298,11 +298,16 @@ class SupabaseRepository {
     required int offset,
     required int limit,
     String? busqueda,
+    String? empresaCliente,
   }) async {
     final empresaId = await getEmpresaId();
     if (empresaId == null) throw Exception('Usuario no autenticado');
 
     var query = supabase.from('servicios').select().eq('empresa_id', empresaId);
+
+    if (empresaCliente != null && empresaCliente.isNotEmpty) {
+      query = query.eq('empresa', empresaCliente);
+    }
 
     if (busqueda != null && busqueda.trim().isNotEmpty) {
       // ',', '(' y ')' tienen significado especial en la sintaxis de
@@ -327,7 +332,10 @@ class SupabaseRepository {
   /// Todos los servicios que calzan con [busqueda] (o todos si es null),
   /// para exportar. Pagina internamente en lotes para no toparse con el
   /// límite de filas por respuesta de Supabase en empresas con mucho historial.
-  Future<List<Map<String, dynamic>>> getTodosLosServiciosParaExportar({String? busqueda}) async {
+  Future<List<Map<String, dynamic>>> getTodosLosServiciosParaExportar({
+    String? busqueda,
+    String? empresaCliente,
+  }) async {
     const tamanoLote = 1000;
     final todos = <Map<String, dynamic>>[];
     var offset = 0;
@@ -337,6 +345,7 @@ class SupabaseRepository {
         offset: offset,
         limit: tamanoLote,
         busqueda: busqueda,
+        empresaCliente: empresaCliente,
       );
       todos.addAll(lote);
       if (lote.length < tamanoLote) break;
@@ -344,6 +353,13 @@ class SupabaseRepository {
     }
 
     return todos;
+  }
+
+  /// Nombres únicos de empresas cliente (el campo "empresa" de servicios)
+  /// registradas por esta empresa, para armar los chips de filtro.
+  Future<List<String>> getEmpresasClientesUnicas() async {
+    final response = await supabase.rpc('empresas_clientes_unicas');
+    return (response as List).map((fila) => fila['empresa'] as String).toList();
   }
 
   Future<void> crearServicio({

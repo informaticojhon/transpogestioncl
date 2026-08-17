@@ -9,6 +9,7 @@ import '../utils/csv_exporter.dart';
 import '../utils/excel_exporter.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/docx_exporter.dart';
+import '../utils/empresa_colors.dart';
 
 const int _kPorPagina = 30;
 
@@ -28,18 +29,36 @@ class _HistorialScreenState extends State<HistorialScreen> {
   Timer? _debounce;
 
   List<dynamic> _servicios = [];
+  List<String> _empresasClientes = [];
   bool _cargando = true;
   bool _cargandoMas = false;
   bool _hayMas = true;
   bool _exportando = false;
   String _busqueda = '';
+  String? _empresaFiltro;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _cargarServicios(reset: true);
+    _cargarEmpresasClientes();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _cargarEmpresasClientes() async {
+    try {
+      final empresas = await _serviciosRepository.obtenerEmpresasClientesUnicas();
+      if (mounted) setState(() => _empresasClientes = empresas);
+    } catch (_) {
+      // Los chips de filtro simplemente no aparecen si esto falla; no es
+      // crítico para el resto de la pantalla.
+    }
+  }
+
+  void _seleccionarEmpresaFiltro(String? empresa) {
+    setState(() => _empresaFiltro = empresa);
+    _cargarServicios(reset: true);
   }
 
   @override
@@ -73,6 +92,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
         offset: 0,
         limit: _kPorPagina,
         busqueda: _busqueda,
+        empresaCliente: _empresaFiltro,
       );
       if (mounted) {
         setState(() {
@@ -109,6 +129,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
         offset: _servicios.length,
         limit: _kPorPagina,
         busqueda: _busqueda,
+        empresaCliente: _empresaFiltro,
       );
       if (mounted) {
         setState(() {
@@ -199,6 +220,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
     try {
       final servicios = await _serviciosRepository.obtenerTodosParaExportar(
         busqueda: _busqueda.isEmpty ? null : _busqueda,
+        empresaCliente: _empresaFiltro,
       );
 
       if (servicios.isEmpty) {
@@ -370,7 +392,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     child: Column(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                           child: TextField(
                             controller: _buscarController,
                             decoration: const InputDecoration(
@@ -380,6 +402,41 @@ class _HistorialScreenState extends State<HistorialScreen> {
                             onChanged: _onBuscarChanged,
                           ),
                         ),
+                        if (_empresasClientes.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: SizedBox(
+                              height: 34,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      label: const Text('Todas'),
+                                      selected: _empresaFiltro == null,
+                                      onSelected: (_) => _seleccionarEmpresaFiltro(null),
+                                    ),
+                                  ),
+                                  for (final empresaCliente in _empresasClientes)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: ChoiceChip(
+                                        avatar: CircleAvatar(
+                                          backgroundColor: colorParaEmpresaCliente(empresaCliente),
+                                          radius: 6,
+                                        ),
+                                        label: Text(empresaCliente),
+                                        selected: _empresaFiltro == empresaCliente,
+                                        onSelected: (_) => _seleccionarEmpresaFiltro(
+                                          _empresaFiltro == empresaCliente ? null : empresaCliente,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
                         Expanded(
                           child: _servicios.isEmpty
                               ? const Center(
@@ -443,6 +500,10 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                       child: Card(
                                         margin: const EdgeInsets.only(bottom: 10),
                                         child: ListTile(
+                                          leading: CircleAvatar(
+                                            radius: 6,
+                                            backgroundColor: colorParaEmpresaCliente(servicio['empresa']),
+                                          ),
                                           title: Text(servicio['empresa'] ?? 'Sin empresa'),
                                           subtitle: Text(
                                             '${servicio['quien'] ?? 'N/A'} - ${servicio['tipo'] ?? 'N/A'}',
