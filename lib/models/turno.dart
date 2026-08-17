@@ -46,3 +46,13 @@ class Turno {
     };
   }
 }
+
+/// Un turno junto con el nombre del trabajador al que pertenece, para
+/// vistas que abarcan a todos los trabajadores de la empresa (ej. el
+/// calendario de turnos) en vez de a uno solo.
+class TurnoConTrabajador {
+  final Turno turno;
+  final String nombreTrabajador;
+
+  TurnoConTrabajador({required this.turno, required this.nombreTrabajador});
+}

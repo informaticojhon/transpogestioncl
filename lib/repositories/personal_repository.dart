@@ -133,6 +133,28 @@ class PersonalRepository {
     return (response as List).map((json) => Turno.fromJson(json)).toList();
   }
 
+  /// Igual que [getTurnosPorFecha], pero incluye el nombre del trabajador
+  /// de cada turno (para la vista de calendario de toda la empresa).
+  Future<List<TurnoConTrabajador>> getTurnosPorFechaConTrabajador(DateTime fecha) async {
+    final empresaId = await _getEmpresaId();
+
+    final fechaStr = fecha.toIso8601String().split('T')[0];
+    final response = await supabase
+        .from('turnos')
+        .select('*, trabajadores(nombre, apellido)')
+        .eq('fecha', fechaStr)
+        .eq('empresa_id', empresaId);
+
+    return (response as List).map((json) {
+      final trabajadorJson = json['trabajadores'] as Map<String, dynamic>?;
+      final nombre = trabajadorJson != null
+          ? '${trabajadorJson['nombre']} ${trabajadorJson['apellido']}'
+          : 'Trabajador eliminado';
+      return TurnoConTrabajador(turno: Turno.fromJson(json), nombreTrabajador: nombre);
+    }).toList()
+      ..sort((a, b) => a.nombreTrabajador.toLowerCase().compareTo(b.nombreTrabajador.toLowerCase()));
+  }
+
   Future<int> contarTurnosTrabajador(int trabajadorId) async {
     final empresaId = await _getEmpresaId();
 
