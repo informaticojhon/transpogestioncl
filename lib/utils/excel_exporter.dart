@@ -1,8 +1,9 @@
 import 'package:excel/excel.dart';
 import 'file_downloader.dart';
 
-/// Genera un .xlsx con el historial de servicios (encabezado en negrita,
-/// columnas con ancho ajustado, monto como número) y dispara su descarga.
+/// Genera un .xlsx con el historial de servicios: encabezado en negrita
+/// con fondo de color, columnas con ancho ajustado a su contenido, bordes
+/// en toda la tabla, montos con separador de miles, y fila de total.
 void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
   final libro = Excel.createExcel();
   const nombreHoja = 'Servicios';
@@ -14,12 +15,29 @@ void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
     if (nombre != nombreHoja) libro.delete(nombre);
   }
 
-  final estiloEncabezado = CellStyle(
+  final bordeFino = Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#B0B0B0'));
+  CellStyle conBorde({bool bold = false, ExcelColor? fondo, ExcelColor? letra, NumFormat? formato}) {
+    return CellStyle(
+      bold: bold,
+      backgroundColorHex: fondo ?? ExcelColor.none,
+      fontColorHex: letra ?? ExcelColor.black,
+      leftBorder: bordeFino,
+      rightBorder: bordeFino,
+      topBorder: bordeFino,
+      bottomBorder: bordeFino,
+      numberFormat: formato ?? NumFormat.standard_0,
+    );
+  }
+
+  final estiloEncabezado = conBorde(
     bold: true,
-    fontColorHex: ExcelColor.white,
-    backgroundColorHex: ExcelColor.fromHexString('#2454FF'),
-    horizontalAlign: HorizontalAlign.Center,
+    fondo: ExcelColor.fromHexString('#2454FF'),
+    letra: ExcelColor.white,
   );
+  final estiloCelda = conBorde();
+  final estiloCeldaNumero = conBorde(formato: NumFormat.standard_3); // "#,##0"
+  final estiloTotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'));
+  final estiloTotalNumero = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'), formato: NumFormat.standard_3);
 
   const encabezados = ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor (CLP)'];
   for (var col = 0; col < encabezados.length; col++) {
@@ -35,26 +53,34 @@ void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
     totalGeneral += valor;
     final filaExcel = fila + 1;
 
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaExcel)).value =
-        TextCellValue(s['fecha']?.toString() ?? '');
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaExcel)).value =
-        TextCellValue(s['empresa']?.toString() ?? '');
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: filaExcel)).value =
-        TextCellValue(s['quien']?.toString() ?? '');
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel)).value =
-        TextCellValue(s['tipo']?.toString() ?? '');
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel)).value =
-        IntCellValue(valor);
+    final textos = [
+      s['fecha']?.toString() ?? '',
+      s['empresa']?.toString() ?? '',
+      s['quien']?.toString() ?? '',
+      s['tipo']?.toString() ?? '',
+    ];
+    for (var col = 0; col < textos.length; col++) {
+      hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
+        ..value = TextCellValue(textos[col])
+        ..cellStyle = estiloCelda;
+    }
+    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
+      ..value = IntCellValue(valor)
+      ..cellStyle = estiloCeldaNumero;
   }
 
   final filaTotal = servicios.length + 1;
-  final estiloTotal = CellStyle(bold: true);
+  for (var col = 0; col < 3; col++) {
+    hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaTotal))
+      ..value = TextCellValue('')
+      ..cellStyle = estiloTotal;
+  }
   hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaTotal))
     ..value = TextCellValue('Total')
     ..cellStyle = estiloTotal;
   hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaTotal))
     ..value = IntCellValue(totalGeneral)
-    ..cellStyle = estiloTotal;
+    ..cellStyle = estiloTotalNumero;
 
   hoja.setColumnWidth(0, 14);
   hoja.setColumnWidth(1, 24);

@@ -2,6 +2,10 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'file_downloader.dart';
 
+/// Anchos de columna en dxa (1440 dxa = 1 pulgada): Fecha, Empresa,
+/// Quién, Tipo, Valor. Suman ~6.1", cómodo dentro de una hoja carta/A4.
+const List<int> _anchosColumnas = [1500, 2400, 1700, 1700, 1500];
+
 /// Genera un .docx mínimo (sin depender de una plantilla) con una tabla
 /// del historial de servicios, y dispara su descarga.
 ///
@@ -25,6 +29,8 @@ void exportarDocxServicios(String nombreArchivo, List<dynamic> servicios) {
     ]));
   }
 
+  final gridCols = _anchosColumnas.map((w) => '<w:gridCol w:w="$w"/>').join();
+
   final documentoXml = '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -35,17 +41,24 @@ void exportarDocxServicios(String nombreArchivo, List<dynamic> servicios) {
       <w:tblPr>
         <w:tblW w:w="0" w:type="auto"/>
         <w:tblBorders>
-          <w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-          <w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-          <w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+          <w:top w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:left w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:right w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
         </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="80" w:type="dxa"/>
+          <w:bottom w:w="80" w:type="dxa"/>
+          <w:left w:w="120" w:type="dxa"/>
+          <w:right w:w="120" w:type="dxa"/>
+        </w:tblCellMar>
       </w:tblPr>
-      ${_filaTabla(['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'], encabezado: true)}
+      <w:tblGrid>$gridCols</w:tblGrid>
+      ${_filaTabla(['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'], encabezado: true, fill: '2454FF', letraBlanca: true)}
       $filasTabla
-      ${_filaTabla(['', '', '', 'Total', _formatearValor(totalGeneral)], encabezado: true)}
+      ${_filaTabla(['', '', '', 'Total', _formatearValor(totalGeneral)], encabezado: true, fill: 'EAEFFF')}
     </w:tbl>
     <w:sectPr/>
   </w:body>
@@ -98,12 +111,25 @@ String _formatearValor(int valor) {
   return '\$$buffer';
 }
 
-String _filaTabla(List<String> celdas, {bool encabezado = false}) {
+String _filaTabla(
+  List<String> celdas, {
+  bool encabezado = false,
+  String? fill,
+  bool letraBlanca = false,
+}) {
   final buffer = StringBuffer('<w:tr>');
-  for (final texto in celdas) {
-    final contenido = _escaparXml(texto);
+  for (var i = 0; i < celdas.length; i++) {
+    final contenido = _escaparXml(celdas[i]);
     final negrita = encabezado ? '<w:b/>' : '';
-    buffer.write('<w:tc><w:p><w:r><w:rPr>$negrita</w:rPr><w:t xml:space="preserve">$contenido</w:t></w:r></w:p></w:tc>');
+    final colorLetra = letraBlanca ? '<w:color w:val="FFFFFF"/>' : '';
+    final sombreado = fill != null ? '<w:shd w:val="clear" w:color="auto" w:fill="$fill"/>' : '';
+    final ancho = _anchosColumnas[i];
+    buffer.write(
+      '<w:tc>'
+      '<w:tcPr><w:tcW w:w="$ancho" w:type="dxa"/>$sombreado</w:tcPr>'
+      '<w:p><w:r><w:rPr>$negrita$colorLetra</w:rPr><w:t xml:space="preserve">$contenido</w:t></w:r></w:p>'
+      '</w:tc>',
+    );
   }
   buffer.write('</w:tr>');
   return buffer.toString();
