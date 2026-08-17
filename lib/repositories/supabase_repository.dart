@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import '../models/empresa.dart';
+import '../models/registro_auditoria.dart';
 
 class SupabaseRepository {
   static final SupabaseRepository _instance = SupabaseRepository._internal();
@@ -294,6 +295,31 @@ class SupabaseRepository {
   /// Servicios paginados para el Historial, con búsqueda hecha en el
   /// servidor (empresa, quién y tipo) en vez de filtrar una lista que
   /// podría no tener todos los datos cargados.
+  /// Historial de auditoría de la empresa (quién creó/editó/eliminó qué),
+  /// paginado por si el registro crece mucho con el tiempo. Solo trae
+  /// filas si el usuario es admin (lo impone la política RLS de
+  /// "auditoria"; para cualquier otro rol simplemente vuelve vacío).
+  Future<List<RegistroAuditoria>> getAuditoria({
+    required int offset,
+    required int limit,
+    String? tabla,
+  }) async {
+    final empresaId = await getEmpresaId();
+    if (empresaId == null) throw Exception('Usuario no autenticado');
+
+    var query = supabase.from('auditoria').select().eq('empresa_id', empresaId);
+
+    if (tabla != null && tabla.isNotEmpty) {
+      query = query.eq('tabla', tabla);
+    }
+
+    final response = await query
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    return (response as List).map((json) => RegistroAuditoria.fromJson(json)).toList();
+  }
+
   Future<List<Map<String, dynamic>>> buscarServiciosPaginado({
     required int offset,
     required int limit,

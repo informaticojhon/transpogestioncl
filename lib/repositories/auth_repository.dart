@@ -1,4 +1,5 @@
 import '../models/empresa.dart';
+import '../models/registro_auditoria.dart';
 import '../repositories/supabase_repository.dart';
 
 class AuthRepository {
@@ -54,5 +55,13 @@ class AuthRepository {
 
   Future<void> eliminarMiembroEquipo(String userId) async {
     await _supabaseRepo.eliminarMiembroEquipo(userId);
+  }
+
+  Future<List<RegistroAuditoria>> getAuditoria({
+    required int offset,
+    required int limit,
+    String? tabla,
+  }) async {
+    return _supabaseRepo.getAuditoria(offset: offset, limit: limit, tabla: tabla);
   }
 }
