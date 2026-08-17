@@ -61,12 +61,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> obtenerServicios({bool mostrarCargando = true}) async {
-    nombreUsuario = await _authRepository.getNombreUsuario();
-    esAdmin = (await _authRepository.getRolUsuario()) == 'admin';
-    final empresa = await _authRepository.getMiEmpresa();
-    nombreEmpresa = empresa?.nombre;
+  static const _timeoutRed = Duration(seconds: 15);
 
+  Future<void> obtenerServicios({bool mostrarCargando = true}) async {
     if (mostrarCargando) {
       setState(() {
         cargando = true;
@@ -75,10 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
+      nombreUsuario = await _authRepository.getNombreUsuario().timeout(_timeoutRed);
+      esAdmin = (await _authRepository.getRolUsuario().timeout(_timeoutRed)) == 'admin';
+      final empresa = await _authRepository.getMiEmpresa().timeout(_timeoutRed);
+      nombreEmpresa = empresa?.nombre;
+
       final resultados = await Future.wait([
         _serviciosRepository.obtenerServiciosRecientes(limite: 20),
         _serviciosRepository.obtenerEstadisticas(),
-      ]);
+      ]).timeout(_timeoutRed);
       final listaServicios = resultados[0] as List;
       final estadisticas = resultados[1] as Map<String, int>;
       if (mounted) {
@@ -145,6 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (esAdmin)
           _NavEntry(Icons.people, 'Gestión de Personal',
               () => Navigator.pushNamed(context, '/trabajadores')),
+        if (esAdmin)
+          _NavEntry(Icons.event_note, 'Turnos',
+              () => Navigator.pushNamed(context, '/turnos')),
         if (esAdmin)
           _NavEntry(Icons.inventory_2, 'Gestión de Materiales',
               () => Navigator.pushNamed(context, '/materiales')),
