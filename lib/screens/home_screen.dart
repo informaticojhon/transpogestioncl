@@ -151,6 +151,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _NavEntry(Icons.event_note, 'Turnos',
               () => Navigator.pushNamed(context, '/turnos')),
         if (esAdmin)
+          _NavEntry(Icons.payments_outlined, 'Remuneraciones',
+              () => Navigator.pushNamed(context, '/remuneraciones')),
+        if (esAdmin)
           _NavEntry(Icons.inventory_2, 'Gestión de Materiales',
               () => Navigator.pushNamed(context, '/materiales')),
         if (esAdmin)

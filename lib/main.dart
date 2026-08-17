@@ -16,6 +16,7 @@ import 'package:transporte_app/screens/trabajadores_list_screen.dart';
 import 'package:transporte_app/screens/materiales_list_screen.dart';
 import 'package:transporte_app/screens/equipo_screen.dart';
 import 'package:transporte_app/screens/turnos_screen.dart';
+import 'package:transporte_app/screens/remuneraciones_screen.dart';
 import 'package:transporte_app/utils/app_theme.dart';
 import 'package:transporte_app/utils/auth_guard.dart';
 import 'package:transporte_app/config/supabase_config.dart';
@@ -102,6 +103,7 @@ class _TransporteAppState extends State<TransporteApp> {
         '/materiales': (context) => const AuthGuard(child: MaterialesListScreen()),
         '/equipo': (context) => const AuthGuard(child: EquipoScreen()),
         '/turnos': (context) => const AuthGuard(child: TurnosScreen()),
+        '/remuneraciones': (context) => const AuthGuard(child: RemuneracionesScreen()),
       },
     );
   }

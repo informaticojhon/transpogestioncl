@@ -46,3 +46,13 @@ class Remuneracion {
     };
   }
 }
+
+/// Una remuneración junto con el nombre del trabajador al que pertenece,
+/// para el reporte consolidado de pagos de toda la empresa (en vez del
+/// detalle de un solo trabajador).
+class RemuneracionConTrabajador {
+  final Remuneracion remuneracion;
+  final String nombreTrabajador;
+
+  RemuneracionConTrabajador({required this.remuneracion, required this.nombreTrabajador});
+}

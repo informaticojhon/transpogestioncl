@@ -210,6 +210,37 @@ class PersonalRepository {
     return (response as List).map((json) => Remuneracion.fromJson(json)).toList();
   }
 
+  /// Todos los pagos de la empresa en un rango de fechas (por fecha de
+  /// pago), con el nombre del trabajador incluido, para el reporte
+  /// consolidado de remuneraciones.
+  Future<List<RemuneracionConTrabajador>> getRemuneracionesEmpresa({
+    required DateTime desde,
+    required DateTime hasta,
+  }) async {
+    final empresaId = await _getEmpresaId();
+
+    final desdeStr = desde.toIso8601String().split('T')[0];
+    final hastaStr = hasta.toIso8601String().split('T')[0];
+    final response = await supabase
+        .from('remuneraciones')
+        .select('*, trabajadores(nombre, apellido)')
+        .eq('empresa_id', empresaId)
+        .gte('fecha_pago', desdeStr)
+        .lte('fecha_pago', hastaStr)
+        .order('fecha_pago', ascending: false);
+
+    return (response as List).map((json) {
+      final trabajadorJson = json['trabajadores'] as Map<String, dynamic>?;
+      final nombre = trabajadorJson != null
+          ? '${trabajadorJson['nombre']} ${trabajadorJson['apellido']}'
+          : 'Trabajador eliminado';
+      return RemuneracionConTrabajador(
+        remuneracion: Remuneracion.fromJson(json),
+        nombreTrabajador: nombre,
+      );
+    }).toList();
+  }
+
   Future<int> totalRemuneracionesTrabajador(int trabajadorId) async {
     final remuneraciones = await getRemuneracionesPorTrabajador(trabajadorId);
     return remuneraciones.fold<int>(0, (sum, rem) => sum + rem.monto);

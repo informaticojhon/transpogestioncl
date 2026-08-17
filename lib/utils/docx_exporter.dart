@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
+import 'package:intl/intl.dart';
+import '../models/remuneracion.dart';
 import 'file_downloader.dart';
+import 'remuneracion_grouping.dart';
 import 'servicio_grouping.dart';
 
 /// Anchos de columna en dxa (1440 dxa = 1 pulgada): Fecha, Quién, Tipo,
@@ -114,6 +117,114 @@ String _seccionEmpresa(String empresa, List<dynamic> filas) {
 ''';
 }
 
+/// Anchos de columna para la tabla de remuneraciones: Fecha de pago,
+/// Periodo, Concepto, Monto.
+const List<int> _anchosColumnasRemuneraciones = [1600, 1600, 2800, 1600];
+
+/// Genera un .docx con el reporte de remuneraciones agrupado por
+/// trabajador (encabezado de sección + tabla + subtotal por cada uno, y
+/// total general al final), con el mismo estilo que el de servicios.
+void exportarDocxRemuneraciones(String nombreArchivo, List<RemuneracionConTrabajador> remuneraciones) {
+  final totalGeneral = remuneraciones.fold<int>(0, (sum, r) => sum + r.remuneracion.monto);
+  final grupos = agruparRemuneracionesPorTrabajador(remuneraciones);
+  final secciones = StringBuffer();
+
+  for (final grupo in grupos.entries) {
+    secciones.write(_seccionTrabajador(grupo.key, grupo.value));
+  }
+
+  final documentoXml = '''
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t>Reporte de Remuneraciones</w:t></w:r></w:p>
+    <w:p/>
+    $secciones
+    <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>Total general: ${_formatearValor(totalGeneral)}</w:t></w:r></w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+''';
+
+  const contentTypesXml = '''
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+''';
+
+  const relsXml = '''
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>
+''';
+
+  final archivo = Archive();
+  _agregarArchivoTexto(archivo, '[Content_Types].xml', contentTypesXml);
+  _agregarArchivoTexto(archivo, '_rels/.rels', relsXml);
+  _agregarArchivoTexto(archivo, 'word/document.xml', documentoXml);
+
+  final bytes = ZipEncoder().encode(archivo);
+  if (bytes == null) return;
+
+  descargarArchivo(
+    nombreArchivo,
+    bytes,
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  );
+}
+
+String _seccionTrabajador(String trabajador, List<RemuneracionConTrabajador> filas) {
+  final formatoFecha = DateFormat('dd/MM/yyyy');
+  final totalTrabajador = filas.fold<int>(0, (sum, r) => sum + r.remuneracion.monto);
+  final gridCols = _anchosColumnasRemuneraciones.map((w) => '<w:gridCol w:w="$w"/>').join();
+  final filasTabla = StringBuffer();
+
+  for (final item in filas) {
+    final r = item.remuneracion;
+    filasTabla.write(_filaTabla(
+      [
+        formatoFecha.format(r.fechaPago),
+        r.periodo,
+        r.concepto ?? '',
+        _formatearValor(r.monto),
+      ],
+      anchos: _anchosColumnasRemuneraciones,
+    ));
+  }
+
+  return '''
+    <w:p><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="D9E2FF"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_escaparXml(trabajador)} · ${filas.length} pago(s)</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="0" w:type="auto"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:left w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:right w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="B0B0B0"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="80" w:type="dxa"/>
+          <w:bottom w:w="80" w:type="dxa"/>
+          <w:left w:w="120" w:type="dxa"/>
+          <w:right w:w="120" w:type="dxa"/>
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>$gridCols</w:tblGrid>
+      ${_filaTabla(['Fecha de pago', 'Periodo', 'Concepto', 'Monto'], encabezado: true, fill: 'F2F4FA', anchos: _anchosColumnasRemuneraciones)}
+      $filasTabla
+    </w:tbl>
+    <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Subtotal ${_escaparXml(trabajador)}: ${_formatearValor(totalTrabajador)}</w:t></w:r></w:p>
+    <w:p/>
+''';
+}
+
 void _agregarArchivoTexto(Archive archivo, String ruta, String contenido) {
   final bytes = utf8.encode(contenido);
   archivo.addFile(ArchiveFile(ruta, bytes.length, bytes));
@@ -134,14 +245,16 @@ String _filaTabla(
   bool encabezado = false,
   String? fill,
   bool letraBlanca = false,
+  List<int>? anchos,
 }) {
+  final anchosColumnas = anchos ?? _anchosColumnas;
   final buffer = StringBuffer('<w:tr>');
   for (var i = 0; i < celdas.length; i++) {
     final contenido = _escaparXml(celdas[i]);
     final negrita = encabezado ? '<w:b/>' : '';
     final colorLetra = letraBlanca ? '<w:color w:val="FFFFFF"/>' : '';
     final sombreado = fill != null ? '<w:shd w:val="clear" w:color="auto" w:fill="$fill"/>' : '';
-    final ancho = _anchosColumnas[i];
+    final ancho = anchosColumnas[i];
     buffer.write(
       '<w:tc>'
       '<w:tcPr><w:tcW w:w="$ancho" w:type="dxa"/>$sombreado</w:tcPr>'
