@@ -603,13 +603,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final maxTotal = _ingresosPorMes.map((e) => e.total).fold<int>(0, (a, b) => a > b ? a : b);
     final maxY = maxTotal == 0 ? 1000.0 : maxTotal * 1.2;
 
+    int? cambioPorcentual;
+    if (_ingresosPorMes.length >= 2) {
+      final actual = _ingresosPorMes.last.total;
+      final anterior = _ingresosPorMes[_ingresosPorMes.length - 2].total;
+      if (anterior > 0) {
+        cambioPorcentual = (((actual - anterior) / anterior) * 100).round();
+      }
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 20, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Ingresos por mes', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                Text('Ingresos por mes', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                if (cambioPorcentual != null) _buildComparativaChip(cambioPorcentual),
+              ],
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: 180,
@@ -724,6 +739,29 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildComparativaChip(int cambioPorcentual) {
+    final subiendo = cambioPorcentual >= 0;
+    final color = subiendo ? Colors.green : Colors.red;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(subiendo ? Icons.trending_up : Icons.trending_down, size: 15, color: color),
+          const SizedBox(width: 4),
+          Text(
+            '${subiendo ? '+' : ''}$cambioPorcentual% vs mes anterior',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
       ),
     );
   }

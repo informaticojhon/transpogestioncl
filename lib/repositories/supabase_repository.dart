@@ -292,9 +292,6 @@ class SupabaseRepository {
     ];
   }
 
-  /// Servicios paginados para el Historial, con búsqueda hecha en el
-  /// servidor (empresa, quién y tipo) en vez de filtrar una lista que
-  /// podría no tener todos los datos cargados.
   /// Historial de auditoría de la empresa (quién creó/editó/eliminó qué),
   /// paginado por si el registro crece mucho con el tiempo. Solo trae
   /// filas si el usuario es admin (lo impone la política RLS de
@@ -320,6 +317,9 @@ class SupabaseRepository {
     return (response as List).map((json) => RegistroAuditoria.fromJson(json)).toList();
   }
 
+  /// Servicios paginados para el Historial, con búsqueda hecha en el
+  /// servidor (empresa, quién y tipo) en vez de filtrar una lista que
+  /// podría no tener todos los datos cargados.
   Future<List<Map<String, dynamic>>> buscarServiciosPaginado({
     required int offset,
     required int limit,
