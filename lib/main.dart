@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:transporte_app/screens/login_screen.dart';
 import 'package:transporte_app/screens/register_screen.dart';
+import 'package:transporte_app/screens/forgot_password_screen.dart';
+import 'package:transporte_app/screens/reset_password_screen.dart';
 import 'package:transporte_app/screens/welcome_screen.dart';
 import 'package:transporte_app/screens/home_screen.dart';
 import 'package:transporte_app/screens/registro_servicio_screen.dart';
@@ -48,13 +51,31 @@ class TransporteApp extends StatefulWidget {
       context.findAncestorStateOfType<_TransporteAppState>();
 }
 
+final navigatorKey = GlobalKey<NavigatorState>();
+
 class _TransporteAppState extends State<TransporteApp> {
   ThemeMode _themeMode = ThemeMode.light;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadThemePreference();
+
+    // Cuando el usuario abre el link de recuperación de contraseña del
+    // correo, Supabase deja una sesión temporal y dispara este evento;
+    // lo llevamos directo a la pantalla para elegir la nueva contraseña.
+    _authSubscription = supabase.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        navigatorKey.currentState?.pushNamed('/reset-password');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadThemePreference() async {
@@ -77,6 +98,7 @@ class _TransporteAppState extends State<TransporteApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'TranspoGestionCL', // Título actualizado
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -95,6 +117,8 @@ class _TransporteAppState extends State<TransporteApp> {
         '/welcome': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/reset-password': (context) => const ResetPasswordScreen(),
         '/home': (context) => const AuthGuard(child: HomeScreen()),
         '/registro_servicio': (context) => const AuthGuard(child: RegistroServicioScreen()),
         '/reporte_diario': (context) => const AuthGuard(child: ReporteDiarioScreen()),

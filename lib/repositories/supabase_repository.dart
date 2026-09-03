@@ -90,6 +90,25 @@ class SupabaseRepository {
     await supabase.auth.signOut();
   }
 
+  /// Envía el correo de recuperación de contraseña. No informa si el
+  /// email existe o no en el sistema (evita que alguien use esta pantalla
+  /// para averiguar qué correos están registrados).
+  Future<void> enviarRecuperacionPassword(String email) async {
+    try {
+      await supabase.auth.resetPasswordForEmail(email);
+    } catch (_) {
+      // Se ignora deliberadamente: la pantalla siempre muestra el mismo
+      // mensaje de éxito, exista o no esa cuenta.
+    }
+  }
+
+  /// Cambia la contraseña del usuario actual. Solo funciona si hay una
+  /// sesión activa (la sesión temporal de recuperación que Supabase crea
+  /// al abrir el link del correo, o una sesión normal ya logueada).
+  Future<void> actualizarPassword(String nuevaPassword) async {
+    await supabase.auth.updateUser(UserAttributes(password: nuevaPassword));
+  }
+
   String? getCurrentUserId() {
     return supabase.auth.currentUser?.id;
   }

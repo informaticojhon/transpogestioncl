@@ -29,6 +29,14 @@ class AuthRepository {
     await _supabaseRepo.logout();
   }
 
+  Future<void> enviarRecuperacionPassword(String email) async {
+    await _supabaseRepo.enviarRecuperacionPassword(email);
+  }
+
+  Future<void> actualizarPassword(String nuevaPassword) async {
+    await _supabaseRepo.actualizarPassword(nuevaPassword);
+  }
+
   Future<bool> isLoggedIn() async {
     return _supabaseRepo.isLoggedIn();
   }
