@@ -17,20 +17,6 @@ class WeatherInfo {
     required this.icon,
     this.ciudad,
   });
-
-  Map<String, dynamic> toJson() => {
-        'temperature': temperature,
-        'description': description,
-        'iconCodePoint': icon.codePoint,
-        'ciudad': ciudad,
-      };
-
-  factory WeatherInfo.fromJson(Map<String, dynamic> json) => WeatherInfo(
-        temperature: (json['temperature'] as num).toDouble(),
-        description: json['description'] as String,
-        icon: IconData(json['iconCodePoint'] as int, fontFamily: 'MaterialIcons'),
-        ciudad: json['ciudad'] as String?,
-      );
 }
 
 /// Ubicación de respaldo (Santiago, Chile) si el usuario no otorga permiso
@@ -52,7 +38,14 @@ class WeatherService {
       final cacheJson = prefs.getString(_cacheKey);
       if (cacheJson != null) {
         try {
-          return WeatherInfo.fromJson(jsonDecode(cacheJson));
+          final data = jsonDecode(cacheJson) as Map<String, dynamic>;
+          final (descripcion, icono) = _interpretarCodigo(data['codigo'] as int);
+          return WeatherInfo(
+            temperature: (data['temperature'] as num).toDouble(),
+            description: descripcion,
+            icon: icono,
+            ciudad: data['ciudad'] as String?,
+          );
         } catch (_) {
           // Cache corrupto: se ignora y se vuelve a consultar.
         }
@@ -64,20 +57,18 @@ class WeatherService {
       final lat = posicion?.latitude ?? _fallbackLat;
       final lon = posicion?.longitude ?? _fallbackLon;
 
-      final clima = await _consultarClima(lat, lon);
+      final (temperatura, codigo) = await _consultarClima(lat, lon);
       final ciudad = posicion != null ? await _obtenerCiudad(lat, lon) : _fallbackCiudad;
+      final (descripcion, icono) = _interpretarCodigo(codigo);
 
-      final info = WeatherInfo(
-        temperature: clima.$1,
-        description: clima.$2,
-        icon: clima.$3,
-        ciudad: ciudad,
-      );
-
-      await prefs.setString(_cacheKey, jsonEncode(info.toJson()));
+      await prefs.setString(_cacheKey, jsonEncode({
+            'temperature': temperatura,
+            'codigo': codigo,
+            'ciudad': ciudad,
+          }));
       await prefs.setString(_cacheDateKey, hoy);
 
-      return info;
+      return WeatherInfo(temperature: temperatura, description: descripcion, icon: icono, ciudad: ciudad);
     } catch (_) {
       return null;
     }
@@ -104,7 +95,7 @@ class WeatherService {
     }
   }
 
-  Future<(double, String, IconData)> _consultarClima(double lat, double lon) async {
+  Future<(double, int)> _consultarClima(double lat, double lon) async {
     final uri = Uri.parse(
       'https://api.open-meteo.com/v1/forecast'
       '?latitude=$lat&longitude=$lon&current_weather=true&timezone=auto',
@@ -114,8 +105,7 @@ class WeatherService {
     final actual = data['current_weather'];
     final temperatura = (actual['temperature'] as num).toDouble();
     final codigo = actual['weathercode'] as int;
-    final (descripcion, icono) = _interpretarCodigo(codigo);
-    return (temperatura, descripcion, icono);
+    return (temperatura, codigo);
   }
 
   Future<String?> _obtenerCiudad(double lat, double lon) async {
