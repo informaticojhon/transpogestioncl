@@ -423,30 +423,51 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             _buildWeatherChip(context),
             const SizedBox(height: 36),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildFeatureCard(
-                  icon: Icons.add_circle_outline,
-                  title: 'Registrar',
-                  description: 'Añade nuevos servicios',
-                  onTap: () => Navigator.pushNamed(context, '/registro_servicio'),
-                ),
-                _buildFeatureCard(
-                  icon: Icons.assessment_rounded,
-                  title: 'Reportes',
-                  description: 'Genera informes en PDF',
-                  onTap: () => Navigator.pushNamed(context, '/reporte_diario'),
-                ),
-                _buildFeatureCard(
-                  icon: Icons.history_rounded,
-                  title: 'Historial',
-                  description: 'Consulta registros',
-                  onTap: () => Navigator.pushNamed(context, '/historial'),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // En celular no caben dos tarjetas de 170 por fila y
+                // quedaban una bajo otra con mucho espacio vacío a los
+                // lados; ahí se muestran como filas a todo el ancho.
+                final compacto = constraints.maxWidth < 560;
+                final tarjetas = [
+                  _buildFeatureCard(
+                    icon: Icons.add_circle_outline,
+                    title: 'Registrar',
+                    description: 'Añade nuevos servicios',
+                    compacto: compacto,
+                    onTap: () => Navigator.pushNamed(context, '/registro_servicio'),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.assessment_rounded,
+                    title: 'Reportes',
+                    description: 'Genera informes en PDF',
+                    compacto: compacto,
+                    onTap: () => Navigator.pushNamed(context, '/reporte_diario'),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.history_rounded,
+                    title: 'Historial',
+                    description: 'Consulta registros',
+                    compacto: compacto,
+                    onTap: () => Navigator.pushNamed(context, '/historial'),
+                  ),
+                ];
+
+                if (compacto) {
+                  return Column(
+                    children: [
+                      for (final tarjeta in tarjetas)
+                        Padding(padding: const EdgeInsets.only(bottom: 12), child: tarjeta),
+                    ],
+                  );
+                }
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: tarjetas,
+                );
+              },
             ),
             const SizedBox(height: 36),
             ElevatedButton.icon(
@@ -771,38 +792,51 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String description,
     required VoidCallback onTap,
+    bool compacto = false,
   }) {
     return Builder(
       builder: (context) {
         final colorScheme = Theme.of(context).colorScheme;
+        final icono = Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: colorScheme.primary.withValues(alpha: 0.14), shape: BoxShape.circle),
+          child: Icon(icon, size: compacto ? 26 : 30, color: colorScheme.primary),
+        );
+        final titulo = Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.primary));
+        final descripcion = Text(
+          description,
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          textAlign: compacto ? TextAlign.start : TextAlign.center,
+        );
+
         return InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            width: 170,
-            padding: const EdgeInsets.all(20),
+            width: compacto ? double.infinity : 170,
+            padding: compacto ? const EdgeInsets.symmetric(horizontal: 16, vertical: 14) : const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: colorScheme.primary.withValues(alpha: 0.18)),
             ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: colorScheme.primary.withValues(alpha: 0.14), shape: BoxShape.circle),
-                  child: Icon(icon, size: 30, color: colorScheme.primary),
-                ),
-                const SizedBox(height: 12),
-                Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.primary)),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 12, color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+            child: compacto
+                ? Row(
+                    children: [
+                      icono,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [titulo, const SizedBox(height: 2), descripcion],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: colorScheme.primary.withValues(alpha: 0.6)),
+                    ],
+                  )
+                : Column(
+                    children: [icono, const SizedBox(height: 12), titulo, const SizedBox(height: 4), descripcion],
+                  ),
           ),
         );
       },

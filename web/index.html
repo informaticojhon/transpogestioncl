@@ -18,21 +18,63 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="TranspoGestión CL: gestión de servicios de transporte, personal e inventario en un solo lugar.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#4A5899">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="transporte_app">
+  <meta name="apple-mobile-web-app-title" content="TranspoGestión">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>transporte_app</title>
+  <title>TranspoGestión CL</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Pantalla de carga: se ve mientras se descarga y arranca la app
+    (varios MB; en un celular con datos móviles puede tardar bastante).
+    Antes la pantalla quedaba en blanco y parecía que no funcionaba.
+    Se quita sola cuando Flutter pinta su primer cuadro.
+  -->
+  <style>
+    html, body { margin: 0; height: 100%; }
+    #carga {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+      background: linear-gradient(135deg, #4A5899, #6E79AB);
+      color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      transition: opacity .3s ease;
+    }
+    #carga.oculta { opacity: 0; pointer-events: none; }
+    #carga .nombre { font-size: 24px; font-weight: 600; }
+    #carga .texto { font-size: 14px; opacity: .8; }
+    #carga .spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.3); border-top-color: #fff;
+      animation: girar .9s linear infinite;
+    }
+    @keyframes girar { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #carga .spinner { animation-duration: 3s; } }
+  </style>
 </head>
 <body>
+  <div id="carga" role="status" aria-live="polite">
+    <div class="nombre">TranspoGestión CL</div>
+    <div class="spinner"></div>
+    <div class="texto">Cargando…</div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var carga = document.getElementById('carga');
+      if (!carga) return;
+      carga.classList.add('oculta');
+      setTimeout(function () { carga.remove(); }, 400);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
