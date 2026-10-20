@@ -11,12 +11,49 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Sitios web desde los que el navegador puede llamar a esta función.
+// Se configuran con el secret ALLOWED_ORIGINS (separados por coma) para
+// poder cambiar o agregar dominios sin tocar el código:
+//   supabase secrets set ALLOWED_ORIGINS=https://www.transpogestion.cl,https://transpogestion.cl
+// Además se permite localhost en cualquier puerto, para `flutter run -d chrome`.
+const origenesPermitidos = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter((o) => o.length > 0);
+
+function origenPermitido(origen: string): boolean {
+  if (origenesPermitidos.includes(origen)) return true;
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origen);
+}
+
+// Solo se devuelve Access-Control-Allow-Origin cuando el origen está
+// permitido; si no, el navegador bloquea la respuesta. Las llamadas sin
+// cabecera Origin (no vienen de un navegador) igual pasan por la
+// verificación de sesión y de rol admin más abajo.
+function corsHeadersPara(req: Request): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+  const origen = req.headers.get('Origin');
+  if (origen && origenPermitido(origen)) {
+    headers['Access-Control-Allow-Origin'] = origen;
+  }
+  return headers;
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersPara(req);
+  const origen = req.headers.get('Origin');
+
+  if (origen && !origenPermitido(origen)) {
+    return new Response(JSON.stringify({ error: 'Origen no permitido' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
