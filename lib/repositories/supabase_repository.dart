@@ -103,10 +103,19 @@ class SupabaseRepository {
   }
 
   /// Cambia la contraseña del usuario actual. Solo funciona si hay una
-  /// sesión activa (la sesión temporal de recuperación que Supabase crea
-  /// al abrir el link del correo, o una sesión normal ya logueada).
+  /// sesión activa (la sesión temporal de recuperación que deja
+  /// [verificarCodigoRecuperacion], o una sesión normal ya logueada).
   Future<void> actualizarPassword(String nuevaPassword) async {
     await supabase.auth.updateUser(UserAttributes(password: nuevaPassword));
+  }
+
+  /// Verifica el código de 6 dígitos del correo de recuperación y deja
+  /// una sesión activa para poder cambiar la contraseña. A diferencia de
+  /// un link que se abre solo, un código que hay que escribir a mano no
+  /// puede ser "gastado" por un escáner de seguridad de correo que
+  /// pre-visita los links antes de que el usuario los abra.
+  Future<void> verificarCodigoRecuperacion(String email, String codigo) async {
+    await supabase.auth.verifyOTP(email: email, token: codigo, type: OtpType.recovery);
   }
 
   String? getCurrentUserId() {

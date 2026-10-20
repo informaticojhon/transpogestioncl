@@ -37,6 +37,10 @@ class AuthRepository {
     await _supabaseRepo.actualizarPassword(nuevaPassword);
   }
 
+  Future<void> verificarCodigoRecuperacion(String email, String codigo) async {
+    await _supabaseRepo.verificarCodigoRecuperacion(email, codigo);
+  }
+
   Future<bool> isLoggedIn() async {
     return _supabaseRepo.isLoggedIn();
   }
