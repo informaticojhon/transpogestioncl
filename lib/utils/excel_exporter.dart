@@ -4,240 +4,191 @@ import 'file_downloader.dart';
 import 'remuneracion_grouping.dart';
 import 'servicio_grouping.dart';
 
-/// Genera un .xlsx con el historial de servicios, agrupado por empresa
-/// cliente: encabezado en negrita con fondo de color, columnas con ancho
-/// ajustado, bordes en toda la tabla, montos con separador de miles,
-/// subtotal por empresa y total general al final.
+/// Genera un .xlsx con el historial de servicios: una tabla con todos los
+/// registros ordenados por fecha, del más reciente al más antiguo (la
+/// fecha queda como fecha real de Excel, así se puede filtrar y reordenar
+/// desde el propio Excel), total general, y debajo un resumen con la
+/// cantidad de servicios y el subtotal de cada empresa cliente.
 void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
-  final libro = Excel.createExcel();
-  const nombreHoja = 'Servicios';
-  final hoja = libro[nombreHoja];
+  final hoja = _HojaReporte('Servicios');
+  final ordenados = ordenarServiciosPorFechaDesc(servicios);
 
-  // Excel.createExcel() trae una hoja "Sheet1" por defecto; se elimina
-  // una vez que ya existe otra hoja, porque no se puede borrar la última.
-  for (final nombre in List<String>.from(libro.sheets.keys)) {
-    if (nombre != nombreHoja) libro.delete(nombre);
-  }
+  hoja.encabezado(['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor (CLP)']);
 
-  final bordeFino = Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#B0B0B0'));
-  CellStyle conBorde({bool bold = false, ExcelColor? fondo, ExcelColor? letra, NumFormat? formato}) {
-    return CellStyle(
-      bold: bold,
-      backgroundColorHex: fondo ?? ExcelColor.none,
-      fontColorHex: letra ?? ExcelColor.black,
-      leftBorder: bordeFino,
-      rightBorder: bordeFino,
-      topBorder: bordeFino,
-      bottomBorder: bordeFino,
-      numberFormat: formato ?? NumFormat.standard_0,
-    );
-  }
-
-  final estiloEncabezado = conBorde(
-    bold: true,
-    fondo: ExcelColor.fromHexString('#2454FF'),
-    letra: ExcelColor.white,
-  );
-  final estiloCelda = conBorde();
-  final estiloCeldaNumero = conBorde(formato: NumFormat.standard_3); // "#,##0"
-  final estiloSubtotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#F2F4FA'));
-  final estiloSubtotalNumero =
-      conBorde(bold: true, fondo: ExcelColor.fromHexString('#F2F4FA'), formato: NumFormat.standard_3);
-  final estiloTotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'));
-  final estiloTotalNumero = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'), formato: NumFormat.standard_3);
-
-  const encabezados = ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor (CLP)'];
-  for (var col = 0; col < encabezados.length; col++) {
-    final celda = hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
-    celda.value = TextCellValue(encabezados[col]);
-    celda.cellStyle = estiloEncabezado;
-  }
-
-  var filaExcel = 1;
   var totalGeneral = 0;
-  final grupos = agruparServiciosPorEmpresa(servicios);
-
-  for (final grupo in grupos.entries) {
-    var totalEmpresa = 0;
-
-    for (final s in grupo.value) {
-      final m = s as Map;
-      final valor = (m['valor'] as num?)?.toInt() ?? 0;
-      totalEmpresa += valor;
-      totalGeneral += valor;
-
-      final textos = [
-        m['fecha']?.toString() ?? '',
-        m['empresa']?.toString() ?? '',
-        m['quien']?.toString() ?? '',
-        m['tipo']?.toString() ?? '',
-      ];
-      for (var col = 0; col < textos.length; col++) {
-        hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-          ..value = TextCellValue(textos[col])
-          ..cellStyle = estiloCelda;
-      }
-      hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-        ..value = IntCellValue(valor)
-        ..cellStyle = estiloCeldaNumero;
-      filaExcel++;
-    }
-
-    for (var col = 0; col < 3; col++) {
-      hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-        ..value = TextCellValue('')
-        ..cellStyle = estiloSubtotal;
-    }
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel))
-      ..value = TextCellValue('Subtotal ${grupo.key}')
-      ..cellStyle = estiloSubtotal;
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-      ..value = IntCellValue(totalEmpresa)
-      ..cellStyle = estiloSubtotalNumero;
-    filaExcel++;
+  for (final s in ordenados) {
+    final m = s as Map;
+    final valor = (m['valor'] as num?)?.toInt() ?? 0;
+    totalGeneral += valor;
+    hoja.fila([
+      _fecha(m['fecha']),
+      TextCellValue(m['empresa']?.toString() ?? ''),
+      TextCellValue(m['quien']?.toString() ?? ''),
+      TextCellValue(m['tipo']?.toString() ?? ''),
+      IntCellValue(valor),
+    ]);
   }
+  hoja.filaTotal('Total general', totalGeneral, columnas: 5);
 
-  for (var col = 0; col < 3; col++) {
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-      ..value = TextCellValue('')
-      ..cellStyle = estiloTotal;
+  hoja.saltarFila();
+  hoja.encabezado(['Empresa', 'Servicios', 'Subtotal (CLP)']);
+  for (final grupo in agruparServiciosPorEmpresa(ordenados).entries) {
+    final subtotal = grupo.value.fold<int>(0, (suma, s) => suma + ((s['valor'] as num?)?.toInt() ?? 0));
+    hoja.fila([
+      TextCellValue(grupo.key),
+      IntCellValue(grupo.value.length),
+      IntCellValue(subtotal),
+    ]);
   }
-  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel))
-    ..value = TextCellValue('Total general')
-    ..cellStyle = estiloTotal;
-  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-    ..value = IntCellValue(totalGeneral)
-    ..cellStyle = estiloTotalNumero;
+  hoja.filaTotal('Total general', totalGeneral, columnas: 3);
 
-  hoja.setColumnWidth(0, 14);
-  hoja.setColumnWidth(1, 24);
-  hoja.setColumnWidth(2, 20);
-  hoja.setColumnWidth(3, 22);
-  hoja.setColumnWidth(4, 16);
-
-  final bytes = libro.encode();
-  if (bytes == null) return;
-
-  descargarArchivo(
-    nombreArchivo,
-    bytes,
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  );
+  hoja.anchos([14, 24, 20, 22, 16]);
+  hoja.descargar(nombreArchivo);
 }
 
-/// Genera un .xlsx con el reporte de remuneraciones, agrupado por
-/// trabajador: encabezado, montos con separador de miles, subtotal por
-/// trabajador y total general al final (mismo estilo que el de servicios).
+/// Genera un .xlsx con el reporte de remuneraciones: todos los pagos
+/// ordenados por fecha de pago, del más reciente al más antiguo, total
+/// general, y debajo un resumen con el subtotal de cada trabajador
+/// (mismo formato que el de servicios).
 void exportarExcelRemuneraciones(String nombreArchivo, List<RemuneracionConTrabajador> remuneraciones) {
-  final libro = Excel.createExcel();
-  const nombreHoja = 'Remuneraciones';
-  final hoja = libro[nombreHoja];
+  final hoja = _HojaReporte('Remuneraciones');
+  final ordenadas = ordenarRemuneracionesPorFechaDesc(remuneraciones);
 
-  for (final nombre in List<String>.from(libro.sheets.keys)) {
-    if (nombre != nombreHoja) libro.delete(nombre);
+  hoja.encabezado(['Fecha de pago', 'Trabajador', 'Periodo', 'Concepto', 'Monto (CLP)']);
+
+  var totalGeneral = 0;
+  for (final item in ordenadas) {
+    final r = item.remuneracion;
+    totalGeneral += r.monto;
+    hoja.fila([
+      DateCellValue.fromDateTime(r.fechaPago),
+      TextCellValue(item.nombreTrabajador),
+      TextCellValue(r.periodo),
+      TextCellValue(r.concepto ?? ''),
+      IntCellValue(r.monto),
+    ]);
+  }
+  hoja.filaTotal('Total general', totalGeneral, columnas: 5);
+
+  hoja.saltarFila();
+  hoja.encabezado(['Trabajador', 'Pagos', 'Subtotal (CLP)']);
+  for (final grupo in agruparRemuneracionesPorTrabajador(ordenadas).entries) {
+    final subtotal = grupo.value.fold<int>(0, (suma, item) => suma + item.remuneracion.monto);
+    hoja.fila([
+      TextCellValue(grupo.key),
+      IntCellValue(grupo.value.length),
+      IntCellValue(subtotal),
+    ]);
+  }
+  hoja.filaTotal('Total general', totalGeneral, columnas: 3);
+
+  hoja.anchos([14, 24, 14, 24, 16]);
+  hoja.descargar(nombreArchivo);
+}
+
+/// "YYYY-MM-DD" → celda de fecha de Excel; si no se puede interpretar,
+/// se deja el texto tal cual para no perder el dato.
+CellValue _fecha(Object? valor) {
+  final texto = valor?.toString() ?? '';
+  final fecha = DateTime.tryParse(texto);
+  return fecha != null ? DateCellValue.fromDateTime(fecha) : TextCellValue(texto);
+}
+
+/// Libro de una sola hoja que se va llenando fila por fila con el estilo
+/// común de los reportes: encabezado en negrita con fondo de color,
+/// bordes en todas las celdas, montos con separador de miles, fechas
+/// dd-mm-aaaa y filas de total destacadas.
+class _HojaReporte {
+  final Excel _libro = Excel.createExcel();
+  late final Sheet _hoja;
+  int _filaActual = 0;
+
+  _HojaReporte(String nombreHoja) {
+    _hoja = _libro[nombreHoja];
+    // Excel.createExcel() trae una hoja "Sheet1" por defecto; se elimina
+    // una vez que ya existe otra hoja, porque no se puede borrar la última.
+    for (final nombre in List<String>.from(_libro.sheets.keys)) {
+      if (nombre != nombreHoja) _libro.delete(nombre);
+    }
   }
 
-  final bordeFino = Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#B0B0B0'));
-  CellStyle conBorde({bool bold = false, ExcelColor? fondo, ExcelColor? letra, NumFormat? formato}) {
+  static final _bordeFino = Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#B0B0B0'));
+  static const _formatoMiles = NumFormat.standard_3; // "#,##0"
+  static const _formatoFecha = CustomDateTimeNumFormat(formatCode: 'dd-mm-yyyy');
+
+  static CellStyle _estilo({bool bold = false, String? fondo, ExcelColor? letra, NumFormat? formato}) {
     return CellStyle(
       bold: bold,
-      backgroundColorHex: fondo ?? ExcelColor.none,
+      backgroundColorHex: fondo != null ? ExcelColor.fromHexString(fondo) : ExcelColor.none,
       fontColorHex: letra ?? ExcelColor.black,
-      leftBorder: bordeFino,
-      rightBorder: bordeFino,
-      topBorder: bordeFino,
-      bottomBorder: bordeFino,
+      leftBorder: _bordeFino,
+      rightBorder: _bordeFino,
+      topBorder: _bordeFino,
+      bottomBorder: _bordeFino,
       numberFormat: formato ?? NumFormat.standard_0,
     );
   }
 
-  final estiloEncabezado = conBorde(
-    bold: true,
-    fondo: ExcelColor.fromHexString('#2454FF'),
-    letra: ExcelColor.white,
-  );
-  final estiloCelda = conBorde();
-  final estiloCeldaNumero = conBorde(formato: NumFormat.standard_3);
-  final estiloSubtotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#F2F4FA'));
-  final estiloSubtotalNumero =
-      conBorde(bold: true, fondo: ExcelColor.fromHexString('#F2F4FA'), formato: NumFormat.standard_3);
-  final estiloTotal = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'));
-  final estiloTotalNumero = conBorde(bold: true, fondo: ExcelColor.fromHexString('#EAEFFF'), formato: NumFormat.standard_3);
+  static final _estiloEncabezado = _estilo(bold: true, fondo: '#2454FF', letra: ExcelColor.white);
+  static final _estiloTexto = _estilo();
+  static final _estiloNumero = _estilo(formato: _formatoMiles);
+  static final _estiloFecha = _estilo(formato: _formatoFecha);
+  static final _estiloTotal = _estilo(bold: true, fondo: '#EAEFFF');
+  static final _estiloTotalNumero = _estilo(bold: true, fondo: '#EAEFFF', formato: _formatoMiles);
 
-  const encabezados = ['Fecha de pago', 'Trabajador', 'Periodo', 'Concepto', 'Monto (CLP)'];
-  for (var col = 0; col < encabezados.length; col++) {
-    final celda = hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
-    celda.value = TextCellValue(encabezados[col]);
-    celda.cellStyle = estiloEncabezado;
+  void _celda(int columna, CellValue valor, CellStyle estilo) {
+    _hoja.cell(CellIndex.indexByColumnRow(columnIndex: columna, rowIndex: _filaActual))
+      ..value = valor
+      ..cellStyle = estilo;
   }
 
-  var filaExcel = 1;
-  var totalGeneral = 0;
-  final grupos = agruparRemuneracionesPorTrabajador(remuneraciones);
-
-  for (final grupo in grupos.entries) {
-    var totalTrabajador = 0;
-
-    for (final item in grupo.value) {
-      final r = item.remuneracion;
-      totalTrabajador += r.monto;
-      totalGeneral += r.monto;
-
-      final textos = [
-        r.fechaPago.toIso8601String().split('T')[0],
-        item.nombreTrabajador,
-        r.periodo,
-        r.concepto ?? '',
-      ];
-      for (var col = 0; col < textos.length; col++) {
-        hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-          ..value = TextCellValue(textos[col])
-          ..cellStyle = estiloCelda;
-      }
-      hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-        ..value = IntCellValue(r.monto)
-        ..cellStyle = estiloCeldaNumero;
-      filaExcel++;
+  void encabezado(List<String> titulos) {
+    for (var col = 0; col < titulos.length; col++) {
+      _celda(col, TextCellValue(titulos[col]), _estiloEncabezado);
     }
+    _filaActual++;
+  }
 
-    for (var col = 0; col < 3; col++) {
-      hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-        ..value = TextCellValue('')
-        ..cellStyle = estiloSubtotal;
+  void fila(List<CellValue> valores) {
+    for (var col = 0; col < valores.length; col++) {
+      final valor = valores[col];
+      final estilo = switch (valor) {
+        DateCellValue() => _estiloFecha,
+        IntCellValue() => _estiloNumero,
+        _ => _estiloTexto,
+      };
+      _celda(col, valor, estilo);
     }
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel))
-      ..value = TextCellValue('Subtotal ${grupo.key}')
-      ..cellStyle = estiloSubtotal;
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-      ..value = IntCellValue(totalTrabajador)
-      ..cellStyle = estiloSubtotalNumero;
-    filaExcel++;
+    _filaActual++;
   }
 
-  for (var col = 0; col < 3; col++) {
-    hoja.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: filaExcel))
-      ..value = TextCellValue('')
-      ..cellStyle = estiloTotal;
+  /// Fila de total: la etiqueta va en la penúltima columna y el monto en
+  /// la última, con las celdas anteriores vacías pero con el mismo fondo.
+  void filaTotal(String etiqueta, int monto, {required int columnas}) {
+    for (var col = 0; col < columnas - 2; col++) {
+      _celda(col, TextCellValue(''), _estiloTotal);
+    }
+    _celda(columnas - 2, TextCellValue(etiqueta), _estiloTotal);
+    _celda(columnas - 1, IntCellValue(monto), _estiloTotalNumero);
+    _filaActual++;
   }
-  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaExcel))
-    ..value = TextCellValue('Total general')
-    ..cellStyle = estiloTotal;
-  hoja.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: filaExcel))
-    ..value = IntCellValue(totalGeneral)
-    ..cellStyle = estiloTotalNumero;
 
-  hoja.setColumnWidth(0, 14);
-  hoja.setColumnWidth(1, 24);
-  hoja.setColumnWidth(2, 14);
-  hoja.setColumnWidth(3, 24);
-  hoja.setColumnWidth(4, 16);
+  void saltarFila() => _filaActual++;
 
-  final bytes = libro.encode();
-  if (bytes == null) return;
+  void anchos(List<double> anchos) {
+    for (var col = 0; col < anchos.length; col++) {
+      _hoja.setColumnWidth(col, anchos[col]);
+    }
+  }
 
-  descargarArchivo(
-    nombreArchivo,
-    bytes,
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  );
+  void descargar(String nombreArchivo) {
+    final bytes = _libro.encode();
+    if (bytes == null) return;
+
+    descargarArchivo(
+      nombreArchivo,
+      bytes,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+  }
 }

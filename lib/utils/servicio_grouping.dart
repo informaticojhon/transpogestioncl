@@ -27,3 +27,16 @@ Map<String, List<dynamic>> agruparServiciosPorEmpresa(List<dynamic> servicios) {
 List<dynamic> ordenarServiciosPorEmpresa(List<dynamic> servicios) {
   return agruparServiciosPorEmpresa(servicios).values.expand((lista) => lista).toList();
 }
+
+/// Servicios ordenados del más reciente al más antiguo por "fecha"
+/// (YYYY-MM-DD, que se ordena bien como texto) y, dentro del mismo día,
+/// por id descendente (el último registrado primero). No depende del
+/// orden en que vengan desde la base de datos.
+List<dynamic> ordenarServiciosPorFechaDesc(List<dynamic> servicios) {
+  return List<dynamic>.from(servicios)
+    ..sort((a, b) {
+      final porFecha = (b['fecha']?.toString() ?? '').compareTo(a['fecha']?.toString() ?? '');
+      if (porFecha != 0) return porFecha;
+      return ((b['id'] as num?) ?? 0).compareTo((a['id'] as num?) ?? 0);
+    });
+}
