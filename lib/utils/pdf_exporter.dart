@@ -1,215 +1,181 @@
+import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/remuneracion.dart';
 import 'currency_formatter.dart';
+import 'fecha_reporte.dart';
 import 'remuneracion_grouping.dart';
 import 'servicio_grouping.dart';
 
-/// Genera un PDF con el historial de servicios agrupado por empresa
-/// cliente (encabezado de sección + tabla + subtotal por cada una, y
-/// total general al final), y dispara su descarga/impartición (mismo
-/// mecanismo que Reporte Diario/Mensual).
+/// Genera un PDF con el historial de servicios con el mismo orden que el
+/// Excel: una tabla con todos los servicios del más reciente al más
+/// antiguo, total general, y debajo un resumen con la cantidad y el
+/// subtotal de cada empresa cliente. Dispara su descarga/impresión
+/// (mismo mecanismo que Reporte Diario/Mensual).
 Future<void> exportarPdfServicios(String nombreArchivo, List<dynamic> servicios) async {
+  final bytes = await construirPdfServicios(servicios);
+  await Printing.sharePdf(bytes: bytes, filename: nombreArchivo);
+}
+
+/// Arma el PDF del historial de servicios (sin descargarlo).
+Future<Uint8List> construirPdfServicios(List<dynamic> servicios) async {
+  final ordenados = ordenarServiciosPorFechaDesc(servicios);
+  int valorDe(dynamic s) => (s['valor'] as num?)?.toInt() ?? 0;
+  final totalGeneral = ordenados.fold<int>(0, (sum, s) => sum + valorDe(s));
+
   final pdf = pw.Document();
-  final formatoFecha = DateFormat('dd/MM/yyyy');
-  final totalGeneral = servicios.fold<int>(0, (sum, s) => sum + ((s['valor'] as num?)?.toInt() ?? 0));
-  final grupos = agruparServiciosPorEmpresa(servicios);
-
-  pw.Widget tablaEmpresa(String empresa, List<dynamic> filas) {
-    final totalEmpresa = filas.fold<int>(0, (sum, s) => sum + ((s['valor'] as num?)?.toInt() ?? 0));
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          color: PdfColors.blue100,
-          child: pw.Text(
-            '$empresa  ·  ${filas.length} servicio(s)',
-            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
-          ),
-        ),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey400),
-          columnWidths: const {
-            0: pw.FlexColumnWidth(1.2),
-            1: pw.FlexColumnWidth(1.6),
-            2: pw.FlexColumnWidth(1.4),
-            3: pw.FlexColumnWidth(1.2),
-          },
-          children: [
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: [
-                for (final titulo in ['Fecha', 'Quién', 'Tipo', 'Valor'])
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(6),
-                    child: pw.Text(titulo, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                  ),
-              ],
-            ),
-            for (final s in filas)
-              pw.TableRow(
-                children: [
-                  for (final valor in [
-                    s['fecha']?.toString() ?? '',
-                    s['quien']?.toString() ?? '',
-                    s['tipo']?.toString() ?? '',
-                    CurrencyFormatter.formatCLP(s['valor']),
-                  ])
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(valor, style: const pw.TextStyle(fontSize: 10)),
-                    ),
-                ],
-              ),
-          ],
-        ),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            child: pw.Text(
-              'Subtotal $empresa: ${CurrencyFormatter.formatCLP(totalEmpresa)}',
-              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 14),
-      ],
-    );
-  }
-
   pdf.addPage(
     pw.MultiPage(
       build: (context) => [
-        pw.Text(
-          'Historial de Servicios',
-          style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+        ..._titulo('Historial de Servicios'),
+        _tabla(
+          encabezados: ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'],
+          anchos: [1.1, 1.6, 1.5, 1.1, 1.1],
+          filas: [
+            for (final s in ordenados)
+              [
+                fechaReporte(s['fecha']),
+                s['empresa']?.toString() ?? '',
+                s['quien']?.toString() ?? '',
+                s['tipo']?.toString() ?? '',
+                CurrencyFormatter.formatCLP(s['valor']),
+              ],
+          ],
         ),
-        pw.Text(
-          'Generado el ${formatoFecha.format(DateTime.now())}',
-          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
-        ),
-        pw.SizedBox(height: 16),
-        for (final grupo in grupos.entries) tablaEmpresa(grupo.key, grupo.value),
-        pw.Divider(),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text(
-            'Total general: ${CurrencyFormatter.formatCLP(totalGeneral)}',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
-          ),
+        _totalGeneral(totalGeneral),
+        pw.SizedBox(height: 20),
+        _subtitulo('Resumen por empresa'),
+        _tabla(
+          encabezados: ['Empresa', 'Servicios', 'Subtotal'],
+          anchos: [2.4, 1, 1.4],
+          filas: [
+            for (final grupo in agruparServiciosPorEmpresa(ordenados).entries)
+              [
+                grupo.key,
+                '${grupo.value.length}',
+                CurrencyFormatter.formatCLP(grupo.value.fold<int>(0, (sum, s) => sum + valorDe(s))),
+              ],
+          ],
         ),
       ],
     ),
   );
-
-  final bytes = await pdf.save();
-  await Printing.sharePdf(bytes: bytes, filename: nombreArchivo);
+  return pdf.save();
 }
 
-/// Genera un PDF con el reporte de remuneraciones agrupado por trabajador
-/// (encabezado de sección + tabla + subtotal por cada uno, y total general
-/// al final), con el mismo estilo visual que el de servicios.
+/// Genera un PDF con el reporte de remuneraciones: todos los pagos del
+/// más reciente al más antiguo, total general y un resumen por
+/// trabajador al final (mismo formato que el de servicios).
 Future<void> exportarPdfRemuneraciones(String nombreArchivo, List<RemuneracionConTrabajador> remuneraciones) async {
+  final bytes = await construirPdfRemuneraciones(remuneraciones);
+  await Printing.sharePdf(bytes: bytes, filename: nombreArchivo);
+}
+
+/// Arma el PDF del reporte de remuneraciones (sin descargarlo).
+Future<Uint8List> construirPdfRemuneraciones(List<RemuneracionConTrabajador> remuneraciones) async {
+  final ordenadas = ordenarRemuneracionesPorFechaDesc(remuneraciones);
+  final totalGeneral = ordenadas.fold<int>(0, (sum, r) => sum + r.remuneracion.monto);
+
   final pdf = pw.Document();
-  final formatoFecha = DateFormat('dd/MM/yyyy');
-  final totalGeneral = remuneraciones.fold<int>(0, (sum, r) => sum + r.remuneracion.monto);
-  final grupos = agruparRemuneracionesPorTrabajador(remuneraciones);
-
-  pw.Widget tablaTrabajador(String trabajador, List<RemuneracionConTrabajador> filas) {
-    final totalTrabajador = filas.fold<int>(0, (sum, r) => sum + r.remuneracion.monto);
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          color: PdfColors.blue100,
-          child: pw.Text(
-            '$trabajador  ·  ${filas.length} pago(s)',
-            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
-          ),
-        ),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey400),
-          columnWidths: const {
-            0: pw.FlexColumnWidth(1.2),
-            1: pw.FlexColumnWidth(1.2),
-            2: pw.FlexColumnWidth(1.8),
-            3: pw.FlexColumnWidth(1.2),
-          },
-          children: [
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: [
-                for (final titulo in ['Fecha de pago', 'Periodo', 'Concepto', 'Monto'])
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(6),
-                    child: pw.Text(titulo, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                  ),
-              ],
-            ),
-            for (final item in filas)
-              pw.TableRow(
-                children: [
-                  for (final valor in [
-                    formatoFecha.format(item.remuneracion.fechaPago),
-                    item.remuneracion.periodo,
-                    item.remuneracion.concepto ?? '',
-                    CurrencyFormatter.formatCLP(item.remuneracion.monto),
-                  ])
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(valor, style: const pw.TextStyle(fontSize: 10)),
-                    ),
-                ],
-              ),
-          ],
-        ),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            child: pw.Text(
-              'Subtotal $trabajador: ${CurrencyFormatter.formatCLP(totalTrabajador)}',
-              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 14),
-      ],
-    );
-  }
-
   pdf.addPage(
     pw.MultiPage(
       build: (context) => [
-        pw.Text(
-          'Reporte de Remuneraciones',
-          style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+        ..._titulo('Reporte de Remuneraciones'),
+        _tabla(
+          encabezados: ['Fecha de pago', 'Trabajador', 'Periodo', 'Concepto', 'Monto'],
+          anchos: [1.2, 1.6, 1, 1.6, 1.1],
+          filas: [
+            for (final item in ordenadas)
+              [
+                fechaReporte(item.remuneracion.fechaPago),
+                item.nombreTrabajador,
+                item.remuneracion.periodo,
+                item.remuneracion.concepto ?? '',
+                CurrencyFormatter.formatCLP(item.remuneracion.monto),
+              ],
+          ],
         ),
-        pw.Text(
-          'Generado el ${formatoFecha.format(DateTime.now())}',
-          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
-        ),
-        pw.SizedBox(height: 16),
-        for (final grupo in grupos.entries) tablaTrabajador(grupo.key, grupo.value),
-        pw.Divider(),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text(
-            'Total general: ${CurrencyFormatter.formatCLP(totalGeneral)}',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
-          ),
+        _totalGeneral(totalGeneral),
+        pw.SizedBox(height: 20),
+        _subtitulo('Resumen por trabajador'),
+        _tabla(
+          encabezados: ['Trabajador', 'Pagos', 'Subtotal'],
+          anchos: [2.4, 1, 1.4],
+          filas: [
+            for (final grupo in agruparRemuneracionesPorTrabajador(ordenadas).entries)
+              [
+                grupo.key,
+                '${grupo.value.length}',
+                CurrencyFormatter.formatCLP(grupo.value.fold<int>(0, (sum, r) => sum + r.remuneracion.monto)),
+              ],
+          ],
         ),
       ],
     ),
   );
-
-  final bytes = await pdf.save();
-  await Printing.sharePdf(bytes: bytes, filename: nombreArchivo);
+  return pdf.save();
 }
+
+List<pw.Widget> _titulo(String titulo) => [
+      pw.Text(titulo, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+      pw.Text(
+        'Generado el ${DateFormat('dd-MM-yyyy').format(DateTime.now())}',
+        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+      ),
+      pw.SizedBox(height: 16),
+    ];
+
+pw.Widget _subtitulo(String texto) => pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      color: PdfColors.blue100,
+      child: pw.Text(
+        texto,
+        style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+      ),
+    );
+
+/// Tabla con encabezado gris; la última columna (montos) va alineada a
+/// la derecha.
+pw.Widget _tabla({
+  required List<String> encabezados,
+  required List<double> anchos,
+  required List<List<String>> filas,
+}) {
+  final ultima = encabezados.length - 1;
+  pw.Widget celda(String texto, int col, {bool negrita = false}) => pw.Padding(
+        padding: const pw.EdgeInsets.all(6),
+        child: pw.Text(
+          texto,
+          textAlign: col == ultima ? pw.TextAlign.right : pw.TextAlign.left,
+          style: pw.TextStyle(fontSize: 10, fontWeight: negrita ? pw.FontWeight.bold : null),
+        ),
+      );
+
+  return pw.Table(
+    border: pw.TableBorder.all(color: PdfColors.grey400),
+    columnWidths: {for (var i = 0; i < anchos.length; i++) i: pw.FlexColumnWidth(anchos[i])},
+    children: [
+      pw.TableRow(
+        repeat: true,
+        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        children: [for (var i = 0; i < encabezados.length; i++) celda(encabezados[i], i, negrita: true)],
+      ),
+      for (final fila in filas) pw.TableRow(children: [for (var i = 0; i < fila.length; i++) celda(fila[i], i)]),
+    ],
+  );
+}
+
+pw.Widget _totalGeneral(int total) => pw.Align(
+      alignment: pw.Alignment.centerRight,
+      child: pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 8),
+        child: pw.Text(
+          'Total general: ${CurrencyFormatter.formatCLP(total)}',
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
+        ),
+      ),
+    );

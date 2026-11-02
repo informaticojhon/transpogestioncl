@@ -10,6 +10,7 @@ import '../utils/excel_exporter.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/docx_exporter.dart';
 import '../utils/empresa_colors.dart';
+import '../utils/fecha_reporte.dart';
 import '../utils/servicio_grouping.dart';
 
 const int _kPorPagina = 30;
@@ -223,9 +224,8 @@ class _HistorialScreenState extends State<HistorialScreen> {
         busqueda: _busqueda.isEmpty ? null : _busqueda,
         empresaCliente: _empresaFiltro,
       );
-      // Ordenados por empresa cliente para que las cuatro exportaciones
-      // queden organizadas de forma consistente (no mezcladas por fecha).
-      final servicios = ordenarServiciosPorEmpresa(serviciosSinOrdenar);
+      // Del más reciente al más antiguo, igual en los cuatro formatos.
+      final servicios = ordenarServiciosPorFechaDesc(serviciosSinOrdenar);
 
       if (servicios.isEmpty) {
         if (mounted) {
@@ -243,7 +243,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
           final filas = <List<dynamic>>[
             ['Fecha', 'Empresa', 'Quién', 'Tipo', 'Valor'],
             for (final s in servicios)
-              [s['fecha'], s['empresa'] ?? '', s['quien'] ?? '', s['tipo'] ?? '', s['valor'] ?? 0],
+              [fechaReporte(s['fecha']), s['empresa'] ?? '', s['quien'] ?? '', s['tipo'] ?? '', s['valor'] ?? 0],
           ];
           exportarCsv('historial_servicios_$hoy.csv', filas);
         case _FormatoExport.excel:

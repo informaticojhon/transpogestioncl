@@ -10,6 +10,12 @@ import 'servicio_grouping.dart';
 /// desde el propio Excel), total general, y debajo un resumen con la
 /// cantidad de servicios y el subtotal de cada empresa cliente.
 void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
+  final bytes = construirExcelServicios(servicios);
+  if (bytes != null) _descargarXlsx(nombreArchivo, bytes);
+}
+
+/// Arma el .xlsx del historial de servicios (sin descargarlo).
+List<int>? construirExcelServicios(List<dynamic> servicios) {
   final hoja = _HojaReporte('Servicios');
   final ordenados = ordenarServiciosPorFechaDesc(servicios);
 
@@ -43,7 +49,7 @@ void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
   hoja.filaTotal('Total general', totalGeneral, columnas: 3);
 
   hoja.anchos([14, 24, 20, 22, 16]);
-  hoja.descargar(nombreArchivo);
+  return hoja.encode();
 }
 
 /// Genera un .xlsx con el reporte de remuneraciones: todos los pagos
@@ -51,6 +57,12 @@ void exportarExcelServicios(String nombreArchivo, List<dynamic> servicios) {
 /// general, y debajo un resumen con el subtotal de cada trabajador
 /// (mismo formato que el de servicios).
 void exportarExcelRemuneraciones(String nombreArchivo, List<RemuneracionConTrabajador> remuneraciones) {
+  final bytes = construirExcelRemuneraciones(remuneraciones);
+  if (bytes != null) _descargarXlsx(nombreArchivo, bytes);
+}
+
+/// Arma el .xlsx del reporte de remuneraciones (sin descargarlo).
+List<int>? construirExcelRemuneraciones(List<RemuneracionConTrabajador> remuneraciones) {
   final hoja = _HojaReporte('Remuneraciones');
   final ordenadas = ordenarRemuneracionesPorFechaDesc(remuneraciones);
 
@@ -83,7 +95,15 @@ void exportarExcelRemuneraciones(String nombreArchivo, List<RemuneracionConTraba
   hoja.filaTotal('Total general', totalGeneral, columnas: 3);
 
   hoja.anchos([14, 24, 14, 24, 16]);
-  hoja.descargar(nombreArchivo);
+  return hoja.encode();
+}
+
+void _descargarXlsx(String nombreArchivo, List<int> bytes) {
+  descargarArchivo(
+    nombreArchivo,
+    bytes,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
 }
 
 /// "YYYY-MM-DD" → celda de fecha de Excel; si no se puede interpretar,
@@ -181,14 +201,5 @@ class _HojaReporte {
     }
   }
 
-  void descargar(String nombreArchivo) {
-    final bytes = _libro.encode();
-    if (bytes == null) return;
-
-    descargarArchivo(
-      nombreArchivo,
-      bytes,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-  }
+  List<int>? encode() => _libro.encode();
 }

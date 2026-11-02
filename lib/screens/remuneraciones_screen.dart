@@ -8,6 +8,7 @@ import '../utils/csv_exporter.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/docx_exporter.dart';
 import '../utils/excel_exporter.dart';
+import '../utils/fecha_reporte.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/remuneracion_grouping.dart';
 
@@ -280,9 +281,9 @@ class _RemuneracionesScreenState extends State<RemuneracionesScreen> {
         case _FormatoExport.csv:
           final filas = <List<dynamic>>[
             ['Fecha de pago', 'Trabajador', 'Periodo', 'Concepto', 'Monto'],
-            for (final item in _remuneraciones)
+            for (final item in ordenarRemuneracionesPorFechaDesc(_remuneraciones))
               [
-                item.remuneracion.fechaPago.toIso8601String().split('T')[0],
+                fechaReporte(item.remuneracion.fechaPago),
                 item.nombreTrabajador,
                 item.remuneracion.periodo,
                 item.remuneracion.concepto ?? '',
