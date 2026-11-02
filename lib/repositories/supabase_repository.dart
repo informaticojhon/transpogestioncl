@@ -32,39 +32,21 @@ class SupabaseRepository {
         throw Exception('Error al crear usuario');
       }
 
-      String empresaId;
-      String rol;
-      String? codigoGenerado;
+      // La empresa y el rol los decide el servidor (registrar_usuario),
+      // no la app: así nadie puede darse rol admin llamando a la API.
+      final codigoGenerado = await supabase.rpc(
+        'registrar_usuario',
+        params: {
+          'p_nombre': nombre,
+          'p_codigo_invitacion': codigoInvitacion,
+          'p_nombre_empresa': nombreEmpresa,
+        },
+      );
 
-      if (codigoInvitacion != null) {
-        final encontrada = await supabase.rpc(
-          'buscar_empresa_por_codigo',
-          params: {'codigo': codigoInvitacion.trim().toUpperCase()},
-        );
-        if (encontrada == null) {
-          throw Exception('El código de invitación no es válido');
-        }
-        empresaId = encontrada as String;
-        rol = 'empleado';
-      } else {
-        final empresaCreada = await supabase.rpc(
-          'crear_empresa',
-          params: {'nombre_empresa': nombreEmpresa ?? '$nombre - Empresa'},
-        );
-        empresaId = empresaCreada['id'] as String;
-        codigoGenerado = empresaCreada['codigo_invitacion'] as String;
-        rol = 'admin';
-      }
-
-      await supabase.from('usuarios').insert({
-        'id': response.user!.id,
-        'nombre': nombre,
-        'email': email,
-        'empresa_id': empresaId,
-        'rol': rol,
-      });
-
-      return codigoGenerado;
+      return codigoGenerado as String?;
+    } on PostgrestException catch (e) {
+      // Mensaje legible de registrar_usuario (p. ej. código inválido).
+      throw Exception('Error al registrar: ${e.message}');
     } catch (e) {
       throw Exception('Error al registrar: ${e.toString()}');
     }
