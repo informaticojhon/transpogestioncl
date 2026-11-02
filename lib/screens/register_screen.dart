@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../repositories/auth_repository.dart';
 import '../utils/validators.dart';
 
@@ -38,13 +39,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         nombre: nameController.text.trim(),
         email: emailController.text.trim(),
         password: passwordController.text,
-        nombreEmpresa: modo == _ModoRegistro.crearEmpresa
-            ? nombreEmpresaController.text.trim()
-            : null,
-        codigoInvitacion: modo == _ModoRegistro.unirseEmpresa
-            ? codigoController.text.trim()
-            : null,
+        nombreEmpresa: modo == _ModoRegistro.crearEmpresa ? nombreEmpresaController.text.trim() : null,
+        codigoInvitacion: modo == _ModoRegistro.unirseEmpresa ? codigoController.text.trim() : null,
       );
+      // Cuenta creada: el navegador / iPhone ofrece guardar el correo y
+      // la contraseña nueva en su gestor de contraseñas.
+      TextInput.finishAutofillContext();
 
       if (codigo != null) {
         setState(() => codigoGenerado = codigo);
@@ -118,10 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       SizedBox(
                         width: double.infinity,
                         height: 50,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Continuar'),
-                        ),
+                        child: ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Continuar')),
                       ),
                     ],
                   ),
@@ -145,119 +142,133 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 padding: const EdgeInsets.all(32),
                 child: Form(
                   key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Crea tu cuenta',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Crea la empresa de tu negocio o únete a una existente',
-                        style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      SegmentedButton<_ModoRegistro>(
-                        segments: const [
-                          ButtonSegment(
-                            value: _ModoRegistro.crearEmpresa,
-                            label: Text('Crear empresa'),
-                            icon: Icon(Icons.add_business_outlined),
-                          ),
-                          ButtonSegment(
-                            value: _ModoRegistro.unirseEmpresa,
-                            label: Text('Unirme'),
-                            icon: Icon(Icons.group_add_outlined),
-                          ),
-                        ],
-                        selected: {modo},
-                        onSelectionChanged: (nuevo) => setState(() => modo = nuevo.first),
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre',
-                          prefixIcon: Icon(Icons.person_outline),
+                  // Solo se ofrece guardar la contraseña cuando el registro
+                  // funciona; si la persona sale sin registrarse, no.
+                  child: AutofillGroup(
+                    onDisposeAction: AutofillContextAction.cancel,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Crea tu cuenta',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                          textAlign: TextAlign.center,
                         ),
-                        validator: Validators.validateName,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo electrónico',
-                          prefixIcon: Icon(Icons.email_outlined),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Crea la empresa de tu negocio o únete a una existente',
+                          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                          textAlign: TextAlign.center,
                         ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: Validators.validateEmail,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Contraseña',
-                          prefixIcon: Icon(Icons.lock_outline),
-                        ),
-                        validator: Validators.validatePassword,
-                      ),
-                      const SizedBox(height: 16),
-                      if (modo == _ModoRegistro.crearEmpresa)
-                        TextFormField(
-                          controller: nombreEmpresaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nombre de tu empresa',
-                            hintText: 'Ej: Transportes Pérez',
-                            prefixIcon: Icon(Icons.business_outlined),
-                          ),
-                          validator: (value) => Validators.validateRequired(value, 'El nombre de la empresa'),
-                        )
-                      else
-                        TextFormField(
-                          controller: codigoController,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: const InputDecoration(
-                            labelText: 'Código de invitación',
-                            hintText: 'Pídeselo al administrador de tu empresa',
-                            prefixIcon: Icon(Icons.key_outlined),
-                          ),
-                          validator: (value) => Validators.validateRequired(value, 'El código de invitación'),
-                        ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: cargando ? null : registrar,
-                          child: cargando
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Registrarse'),
-                        ),
-                      ),
-                      if (error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(10),
+                        const SizedBox(height: 20),
+                        SegmentedButton<_ModoRegistro>(
+                          segments: const [
+                            ButtonSegment(
+                              value: _ModoRegistro.crearEmpresa,
+                              label: Text('Crear empresa'),
+                              icon: Icon(Icons.add_business_outlined),
                             ),
-                            child: Text(
-                              error!,
-                              style: TextStyle(color: colorScheme.onErrorContainer),
-                              textAlign: TextAlign.center,
+                            ButtonSegment(
+                              value: _ModoRegistro.unirseEmpresa,
+                              label: Text('Unirme'),
+                              icon: Icon(Icons.group_add_outlined),
                             ),
+                          ],
+                          selected: {modo},
+                          onSelectionChanged: (nuevo) => setState(() => modo = nuevo.first),
+                        ),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nombre',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                          autofillHints: const [AutofillHints.name],
+                          textInputAction: TextInputAction.next,
+                          validator: Validators.validateName,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Correo electrónico',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email, AutofillHints.username],
+                          textInputAction: TextInputAction.next,
+                          validator: Validators.validateEmail,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Contraseña',
+                            prefixIcon: Icon(Icons.lock_outline),
+                          ),
+                          // newPassword: el iPhone puede sugerir una contraseña
+                          // segura y guardarla.
+                          autofillHints: const [AutofillHints.newPassword],
+                          textInputAction: TextInputAction.next,
+                          validator: Validators.validatePassword,
+                        ),
+                        const SizedBox(height: 16),
+                        if (modo == _ModoRegistro.crearEmpresa)
+                          TextFormField(
+                            controller: nombreEmpresaController,
+                            decoration: const InputDecoration(
+                              labelText: 'Nombre de tu empresa',
+                              hintText: 'Ej: Transportes Pérez',
+                              prefixIcon: Icon(Icons.business_outlined),
+                            ),
+                            validator: (value) => Validators.validateRequired(value, 'El nombre de la empresa'),
+                          )
+                        else
+                          TextFormField(
+                            controller: codigoController,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: const InputDecoration(
+                              labelText: 'Código de invitación',
+                              hintText: 'Pídeselo al administrador de tu empresa',
+                              prefixIcon: Icon(Icons.key_outlined),
+                            ),
+                            validator: (value) => Validators.validateRequired(value, 'El código de invitación'),
+                          ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: cargando ? null : registrar,
+                            child:
+                                cargando
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                    : const Text('Registrarse'),
                           ),
                         ),
-                    ],
+                        if (error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                error!,
+                                style: TextStyle(color: colorScheme.onErrorContainer),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),

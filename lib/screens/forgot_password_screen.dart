@@ -132,6 +132,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               prefixIcon: Icon(Icons.email_outlined),
             ),
             keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email, AutofillHints.username],
             validator: Validators.validateEmail,
           ),
           const SizedBox(height: 24),
@@ -192,6 +193,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               prefixIcon: Icon(Icons.pin_outlined),
             ),
             keyboardType: TextInputType.number,
+            // En iPhone, Safari puede sugerir el código que llegó por correo.
+            autofillHints: const [AutofillHints.oneTimeCode],
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 22, letterSpacing: 8),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa el código' : null,

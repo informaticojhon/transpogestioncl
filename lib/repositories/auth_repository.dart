@@ -41,6 +41,10 @@ class AuthRepository {
     await _supabaseRepo.verificarCodigoRecuperacion(email, codigo);
   }
 
+  String? getEmailActual() {
+    return _supabaseRepo.getCurrentUserEmail();
+  }
+
   Future<bool> isLoggedIn() async {
     return _supabaseRepo.isLoggedIn();
   }

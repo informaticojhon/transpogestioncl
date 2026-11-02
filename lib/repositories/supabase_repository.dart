@@ -122,6 +122,10 @@ class SupabaseRepository {
     return supabase.auth.currentUser?.id;
   }
 
+  String? getCurrentUserEmail() {
+    return supabase.auth.currentUser?.email;
+  }
+
   bool isLoggedIn() {
     return supabase.auth.currentUser != null;
   }
