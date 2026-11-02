@@ -374,10 +374,12 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Icon(clima.icon, size: 20, color: colorScheme.primary),
           const SizedBox(width: 8),
-          Text(
-            '${clima.temperature.round()}°C · ${clima.description}'
-            '${clima.ciudad != null ? ' · ${clima.ciudad}' : ''}',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colorScheme.primary),
+          Flexible(
+            child: Text(
+              '${clima.temperature.round()}°C · ${clima.description}'
+              '${clima.ciudad != null ? ' · ${clima.ciudad}' : ''}',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colorScheme.primary),
+            ),
           ),
         ],
       ),
@@ -484,95 +486,112 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDashboard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    // En celular el saludo y el clima no caben lado a lado (el saludo
+    // quedaba en una columna angosta, una sílaba por línea): ahí el
+    // clima va debajo del saludo.
+    final compacto = MediaQuery.sizeOf(context).width < 600;
+
+    final saludo = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_saludoNombre, style: Theme.of(context).textTheme.headlineSmall),
+        if (nombreEmpresa != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            nombreEmpresa!,
+            style: TextStyle(fontSize: 13, color: colorScheme.primary, fontWeight: FontWeight.w600),
+          ),
+        ],
+        const SizedBox(height: 4),
+        Text(
+          '¿Qué deseas hacer hoy?',
+          style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+        ),
+      ],
+    );
+
+    // Todo el panel (encabezado, totales, gráfico y lista) va en un solo
+    // scroll. Antes solo la lista se desplazaba y lo de arriba quedaba
+    // fijo, así que en una pantalla de celular el gráfico se cortaba y la
+    // lista casi no tenía espacio.
+    final encabezado = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (compacto) ...[
+          saludo,
+          if (_clima != null) ...[
+            const SizedBox(height: 12),
+            Align(alignment: Alignment.centerLeft, child: _buildWeatherChip(context)),
+          ],
+        ] else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: saludo),
+              const SizedBox(width: 12),
+              _buildWeatherChip(context),
+            ],
+          ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.assignment_turned_in_rounded,
+                value: '$totalServicios',
+                label: 'Servicios registrados',
+                color: colorScheme.primary,
+                compacto: compacto,
+              ),
+            ),
+            SizedBox(width: compacto ? 12 : 16),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.attach_money_rounded,
+                value: formatoCLP(totalValor),
+                label: 'Total acumulado',
+                color: colorScheme.tertiary,
+                compacto: compacto,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_ingresosPorMes.isNotEmpty) ...[
+          _buildIngresosChart(context),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            Text(
+              'Servicios recientes',
+              style: TextStyle(fontSize: 13, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/historial'),
+              child: const Text('Ver historial completo'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
 
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1000),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_saludoNombre, style: Theme.of(context).textTheme.headlineSmall),
-                        if (nombreEmpresa != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            nombreEmpresa!,
-                            style: TextStyle(fontSize: 13, color: colorScheme.primary, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
-                        Text(
-                          '¿Qué deseas hacer hoy?',
-                          style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _buildWeatherChip(context),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.assignment_turned_in_rounded,
-                      value: '$totalServicios',
-                      label: 'Servicios registrados',
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.attach_money_rounded,
-                      value: formatoCLP(totalValor),
-                      label: 'Total acumulado',
-                      color: colorScheme.tertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_ingresosPorMes.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: _buildIngresosChart(context),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: Row(
-                children: [
-                  Text(
-                    'Servicios recientes',
-                    style: TextStyle(fontSize: 13, color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/historial'),
-                    child: const Text('Ver historial completo'),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: refrescarDatos,
                 child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                  itemCount: servicios.length,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
+                  itemCount: servicios.length + 1,
                   itemBuilder: (context, index) {
-                    final s = servicios[index];
+                    if (index == 0) return encabezado;
+                    final s = servicios[index - 1];
                     final esPasaje = s['tipo'] == 'Pasaje';
                     final tipoColor = esPasaje ? colorScheme.primary : colorScheme.tertiary;
                     return Card(
@@ -731,28 +750,34 @@ class _HomeScreenState extends State<HomeScreen> {
     required String value,
     required String label,
     required Color color,
+    bool compacto = false,
   }) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.all(compacto ? 12 : 18),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(compacto ? 8 : 12),
               decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: color, size: compacto ? 18 : 22),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: compacto ? 10 : 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    value,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // Los montos grandes ("$1.250.000") se achican para caber
+                  // completos en vez de cortarse con "…".
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                    ),
                   ),
                   Text(label, style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.85))),
                 ],
