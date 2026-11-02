@@ -46,3 +46,6 @@ app.*.map.json
 
 # Supabase CLI (estado local, no se sube)
 /supabase/.temp/
+
+.vercel
+.env*
