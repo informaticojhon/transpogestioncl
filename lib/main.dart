@@ -24,6 +24,7 @@ import 'package:transporte_app/screens/auditoria_screen.dart';
 import 'package:transporte_app/utils/app_theme.dart';
 import 'package:transporte_app/utils/auth_guard.dart';
 import 'package:transporte_app/config/supabase_config.dart';
+import 'package:transporte_app/config/reintento_jwt_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,7 @@ void main() async {
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
+    httpClient: ReintentoJwtClient(),
   );
   
   Intl.defaultLocale = 'es_CL'; // Fechas en español chileno
