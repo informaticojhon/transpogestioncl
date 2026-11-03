@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../repositories/auth_repository.dart';
 import '../repositories/servicios_repository.dart';
 import 'registro_servicio_screen.dart';
 import '../utils/currency_formatter.dart';
@@ -36,6 +37,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
   bool _cargandoMas = false;
   bool _hayMas = true;
   bool _exportando = false;
+  bool _esAdmin = false;
   String _busqueda = '';
   String? _empresaFiltro;
   String? _error;
@@ -45,7 +47,24 @@ class _HistorialScreenState extends State<HistorialScreen> {
     super.initState();
     _cargarServicios(reset: true);
     _cargarEmpresasClientes();
+    _cargarRol();
     _scrollController.addListener(_onScroll);
+  }
+
+  /// La papelera sale de la auditoría, que solo pueden leer los admin.
+  Future<void> _cargarRol() async {
+    try {
+      final rol = await AuthRepository().getRolUsuario();
+      if (mounted) setState(() => _esAdmin = rol == 'admin');
+    } catch (_) {
+      // Sin rol simplemente no aparece el botón de la papelera.
+    }
+  }
+
+  Future<void> _abrirPapelera() async {
+    await Navigator.pushNamed(context, '/papelera');
+    // Lo restaurado en la papelera vuelve a aparecer en la lista.
+    if (mounted) _cargarServicios(reset: true);
   }
 
   Future<void> _cargarEmpresasClientes() async {
@@ -158,11 +177,33 @@ class _HistorialScreenState extends State<HistorialScreen> {
     });
   }
 
+  Future<bool> _confirmarEliminacion(Map servicio) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: Text('¿Eliminar el servicio de ${servicio['empresa']}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    return confirmado == true;
+  }
+
   /// Elimina un servicio y ofrece "Deshacer" por unos segundos, que lo
   /// vuelve a insertar tal cual estaba.
   Future<void> _eliminarServicio(Map<String, dynamic> servicio) async {
-    // El Dismissible ya lo sacó de la pantalla; se quita de la lista
-    // para que no vuelva a dibujarse mientras se recarga.
+    // Se quita de la lista al tiro (si fue deslizando, el Dismissible ya
+    // lo sacó de la pantalla) para que no vuelva a dibujarse al recargar.
     setState(() => _servicios.removeWhere((s) => s['id'] == servicio['id']));
     final messenger = ScaffoldMessenger.of(context);
 
@@ -178,7 +219,9 @@ class _HistorialScreenState extends State<HistorialScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text('Servicio de ${servicio['empresa']} eliminado'),
-        duration: const Duration(seconds: 8),
+        duration: const Duration(seconds: 1),
+        // Con un botón (DESHACER) Flutter lo deja fijo hasta tocarlo; que se cierre solo.
+        persist: false,
         action: SnackBarAction(
           label: 'DESHACER',
           onPressed: () => _deshacerEliminacion(servicio, messenger),
@@ -190,7 +233,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
   Future<void> _deshacerEliminacion(Map<String, dynamic> servicio, ScaffoldMessengerState messenger) async {
     try {
       await _serviciosRepository.restaurarServicio(servicio);
-      messenger.showSnackBar(const SnackBar(content: Text('Servicio restaurado')));
+      messenger.showSnackBar(const SnackBar(content: Text('Servicio restaurado'), duration: Duration(seconds: 1)));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('No se pudo restaurar: $e')));
     }
@@ -285,6 +328,12 @@ class _HistorialScreenState extends State<HistorialScreen> {
       appBar: AppBar(
         title: const Text('Historial de Servicios'),
         actions: [
+          if (_esAdmin)
+            IconButton(
+              icon: const Icon(Icons.restore_from_trash_outlined),
+              tooltip: 'Papelera',
+              onPressed: _abrirPapelera,
+            ),
           if (_servicios.isNotEmpty)
             _exportando
                 ? const Padding(
@@ -438,30 +487,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                     return Dismissible(
                                       key: Key(servicioId.toString()),
                                       direction: DismissDirection.endToStart,
-                                      confirmDismiss: (direction) async {
-                                        return await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text('Confirmar eliminación'),
-                                            content: Text(
-                                              '¿Eliminar el servicio de ${servicio['empresa']}?',
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
-                                                child: const Text('Cancelar'),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                                child: const Text('Eliminar'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
+                                      confirmDismiss: (direction) => _confirmarEliminacion(servicio),
                                       onDismissed: (direction) {
                                         _eliminarServicio(Map<String, dynamic>.from(servicio as Map));
                                       },
@@ -497,6 +523,8 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                               ),
                                               IconButton(
                                                 icon: const Icon(Icons.edit, color: Colors.blue),
+                                                tooltip: 'Editar',
+                                                visualDensity: VisualDensity.compact,
                                                 onPressed: () async {
                                                   final recargar = await Navigator.push(
                                                     context,
@@ -508,6 +536,18 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                                   );
                                                   if (recargar == true) {
                                                     _cargarServicios(reset: true);
+                                                  }
+                                                },
+                                              ),
+                                              // En el computador deslizar no se descubre:
+                                              // el botón hace lo mismo (confirmar y luego Deshacer).
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                                tooltip: 'Eliminar',
+                                                visualDensity: VisualDensity.compact,
+                                                onPressed: () async {
+                                                  if (await _confirmarEliminacion(servicio)) {
+                                                    _eliminarServicio(Map<String, dynamic>.from(servicio as Map));
                                                   }
                                                 },
                                               ),

@@ -1,3 +1,4 @@
+import '../models/registro_auditoria.dart';
 import '../repositories/supabase_repository.dart';
 
 class ServiciosRepository {
@@ -98,5 +99,13 @@ class ServiciosRepository {
 
   Future<void> restaurarServicio(Map<String, dynamic> servicio) async {
     await _supabaseRepo.restaurarServicio(servicio);
+  }
+
+  Future<void> restaurarServicios(List<Map<String, dynamic>> servicios) async {
+    await _supabaseRepo.restaurarServicios(servicios);
+  }
+
+  Future<List<RegistroAuditoria>> obtenerServiciosEliminados({int dias = 30}) async {
+    return await _supabaseRepo.getServiciosEliminados(dias: dias);
   }
 }

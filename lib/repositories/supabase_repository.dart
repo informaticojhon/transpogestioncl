@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import '../models/empresa.dart';
@@ -462,19 +463,78 @@ class SupabaseRepository {
   /// Vuelve a insertar un servicio recién eliminado (botón "Deshacer"),
   /// con el mismo id, autor y fecha de creación que tenía.
   Future<void> restaurarServicio(Map<String, dynamic> servicio) async {
+    await restaurarServicios([servicio]);
+  }
+
+  /// Vuelve a insertar servicios eliminados con su mismo id y fecha de
+  /// creación. La auditoría no guarda el autor (user_id), así que los que
+  /// vienen de la Papelera quedan a nombre de quien los restaura.
+  Future<void> restaurarServicios(List<Map<String, dynamic>> servicios) async {
+    final empresaId = await getEmpresaId();
+    if (empresaId == null) throw Exception('Usuario no autenticado');
+    final userId = getCurrentUserId();
+
+    final filas = [
+      for (final s in servicios)
+        {
+          'id': s['id'],
+          'user_id': s['user_id'] ?? userId,
+          'fecha': s['fecha'],
+          'valor': s['valor'],
+          'quien': s['quien'],
+          'empresa': s['empresa'],
+          'tipo': s['tipo'],
+          'created_at': s['created_at'],
+          'empresa_id': empresaId,
+        },
+    ];
+    for (var i = 0; i < filas.length; i += _kLoteIds) {
+      await supabase.from('servicios').insert(filas.sublist(i, min(i + _kLoteIds, filas.length)));
+    }
+  }
+
+  /// Papelera: servicios eliminados en los últimos [dias] días que no se
+  /// han vuelto a restaurar, el más reciente primero. Salen de la
+  /// auditoría, que solo pueden leer los admin (RLS); para otro rol vuelve
+  /// vacío. Si un servicio se borró más de una vez, queda el último borrado.
+  Future<List<RegistroAuditoria>> getServiciosEliminados({int dias = 30}) async {
     final empresaId = await getEmpresaId();
     if (empresaId == null) throw Exception('Usuario no autenticado');
 
-    await supabase.from('servicios').insert({
-      'id': servicio['id'],
-      'user_id': servicio['user_id'],
-      'fecha': servicio['fecha'],
-      'valor': servicio['valor'],
-      'quien': servicio['quien'],
-      'empresa': servicio['empresa'],
-      'tipo': servicio['tipo'],
-      'created_at': servicio['created_at'],
-      'empresa_id': empresaId,
-    });
+    final desde = DateTime.now().toUtc().subtract(Duration(days: dias)).toIso8601String();
+    final response = await supabase
+        .from('auditoria')
+        .select()
+        .eq('empresa_id', empresaId)
+        .eq('tabla', 'servicios')
+        .eq('accion', 'delete')
+        .gte('created_at', desde)
+        .order('created_at', ascending: false)
+        .limit(2000);
+
+    final porId = <int, RegistroAuditoria>{};
+    for (final json in response as List) {
+      final registro = RegistroAuditoria.fromJson(json);
+      final id = registro.datos?['id'];
+      if (id is int) porId.putIfAbsent(id, () => registro);
+    }
+
+    // Los que ya existen de nuevo en servicios (restaurados) no van.
+    final ids = porId.keys.toList();
+    for (var i = 0; i < ids.length; i += _kLoteIds) {
+      final existentes = await supabase
+          .from('servicios')
+          .select('id')
+          .eq('empresa_id', empresaId)
+          .inFilter('id', ids.sublist(i, min(i + _kLoteIds, ids.length)));
+      for (final fila in existentes as List) {
+        porId.remove(fila['id']);
+      }
+    }
+    return porId.values.toList();
   }
 }
+
+/// Tamaño de lote al consultar o insertar muchos servicios por id, para no
+/// pasar el largo máximo de URL ni de una petición.
+const int _kLoteIds = 200;

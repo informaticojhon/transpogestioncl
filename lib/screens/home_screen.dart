@@ -103,7 +103,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> refrescarDatos() async {
-    await obtenerServicios(mostrarCargando: false);
+    await Future.wait([obtenerServicios(mostrarCargando: false), _cargarIngresosPorMes()]);
+  }
+
+  /// Abre otra sección y, al volver, recarga el panel sin mostrar el
+  /// indicador de carga: lo que se registró, editó o eliminó allá tiene
+  /// que verse acá sin recargar la página.
+  Future<void> _abrir(String ruta) async {
+    await Navigator.pushNamed(context, ruta);
+    if (mounted) refrescarDatos();
   }
 
   Future<void> cerrarSesion() async {
@@ -138,31 +146,31 @@ class _HomeScreenState extends State<HomeScreen> {
   List<_NavEntry> _navEntries(BuildContext context) => [
         _NavEntry(Icons.dashboard_rounded, 'Panel Principal'),
         _NavEntry(Icons.add_circle_outline, 'Registrar Servicio',
-            () => Navigator.pushNamed(context, '/registro_servicio')),
+            () => _abrir('/registro_servicio')),
         _NavEntry(Icons.calendar_today, 'Reporte Diario',
-            () => Navigator.pushNamed(context, '/reporte_diario')),
+            () => _abrir('/reporte_diario')),
         _NavEntry(Icons.bar_chart, 'Reporte Mensual',
-            () => Navigator.pushNamed(context, '/reporte_mensual')),
+            () => _abrir('/reporte_mensual')),
         _NavEntry(Icons.history, 'Historial',
-            () => Navigator.pushNamed(context, '/historial')),
+            () => _abrir('/historial')),
         if (esAdmin)
           _NavEntry(Icons.people, 'Gestión de Personal',
-              () => Navigator.pushNamed(context, '/trabajadores')),
+              () => _abrir('/trabajadores')),
         if (esAdmin)
           _NavEntry(Icons.event_note, 'Turnos',
-              () => Navigator.pushNamed(context, '/turnos')),
+              () => _abrir('/turnos')),
         if (esAdmin)
           _NavEntry(Icons.payments_outlined, 'Remuneraciones',
-              () => Navigator.pushNamed(context, '/remuneraciones')),
+              () => _abrir('/remuneraciones')),
         if (esAdmin)
           _NavEntry(Icons.fact_check_outlined, 'Auditoría',
-              () => Navigator.pushNamed(context, '/auditoria')),
+              () => _abrir('/auditoria')),
         if (esAdmin)
           _NavEntry(Icons.inventory_2, 'Gestión de Materiales',
-              () => Navigator.pushNamed(context, '/materiales')),
+              () => _abrir('/materiales')),
         if (esAdmin)
           _NavEntry(Icons.groups_outlined, 'Gestionar mi equipo',
-              () => Navigator.pushNamed(context, '/equipo')),
+              () => _abrir('/equipo')),
       ];
 
   @override
@@ -217,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: servicios.isEmpty || desktop
           ? null
           : FloatingActionButton(
-              onPressed: () => Navigator.pushNamed(context, '/registro_servicio'),
+              onPressed: () => _abrir('/registro_servicio'),
               tooltip: 'Registrar nuevo servicio',
               child: const Icon(Icons.add),
             ),
@@ -437,21 +445,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: 'Registrar',
                     description: 'Añade nuevos servicios',
                     compacto: compacto,
-                    onTap: () => Navigator.pushNamed(context, '/registro_servicio'),
+                    onTap: () => _abrir('/registro_servicio'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.assessment_rounded,
                     title: 'Reportes',
                     description: 'Genera informes en PDF',
                     compacto: compacto,
-                    onTap: () => Navigator.pushNamed(context, '/reporte_diario'),
+                    onTap: () => _abrir('/reporte_diario'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.history_rounded,
                     title: 'Historial',
                     description: 'Consulta registros',
                     compacto: compacto,
-                    onTap: () => Navigator.pushNamed(context, '/historial'),
+                    onTap: () => _abrir('/historial'),
                   ),
                 ];
 
@@ -473,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 36),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/registro_servicio'),
+              onPressed: () => _abrir('/registro_servicio'),
               icon: const Icon(Icons.add_rounded),
               label: const Text('Comenzar a registrar'),
             ),
@@ -569,7 +577,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const Spacer(),
             TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/historial'),
+              onPressed: () => _abrir('/historial'),
               child: const Text('Ver historial completo'),
             ),
           ],
