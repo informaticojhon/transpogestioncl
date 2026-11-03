@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../repositories/servicios_repository.dart';
 import '../repositories/auth_repository.dart';
 import '../main.dart';
+import '../utils/app_logo.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/responsive.dart';
 import '../services/weather_service.dart';
@@ -175,15 +176,21 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.business_center_rounded, color: colorScheme.primary),
+            const AppLogo(size: 32),
             const SizedBox(width: 12),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('TranspoGestionCL', style: TextStyle(fontSize: 17)),
-                Text(
-                  'Gestión Empresarial',
+                Text.rich(
+                  TextSpan(children: [
+                    const TextSpan(text: 'TranspoGestión '),
+                    TextSpan(text: 'CL', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.w700)),
+                  ]),
+                  style: const TextStyle(fontSize: 17),
+                ),
+                const Text(
+                  'Gestión de transporte',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
                 ),
               ],
@@ -394,14 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.business_center_rounded, size: 64, color: colorScheme.primary),
-            ),
+            const AppLogo(size: 112),
             const SizedBox(height: 28),
             Text(
               _saludoNombre,

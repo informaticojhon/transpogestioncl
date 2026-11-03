@@ -99,7 +99,7 @@ class _TransporteAppState extends State<TransporteApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'TranspoGestionCL', // Título actualizado
+      title: 'TranspoGestión CL',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: _themeMode,

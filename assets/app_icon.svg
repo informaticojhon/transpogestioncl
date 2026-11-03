@@ -1,64 +1,9 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Fondo con gradiente azul -->
-  <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1976D2;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0D47A1;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="truckGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#E3F2FD;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  
-  <!-- Fondo redondeado -->
-  <rect width="512" height="512" rx="115" fill="url(#bgGradient)"/>
-  
-  <!-- Camión/Transporte -->
-  <g transform="translate(90, 140)">
-    <!-- Cabina del camión -->
-    <rect x="0" y="80" width="120" height="100" rx="15" fill="url(#truckGradient)" stroke="#1565C0" stroke-width="6"/>
-    
-    <!-- Ventana cabina -->
-    <rect x="15" y="95" width="90" height="50" rx="8" fill="#64B5F6" opacity="0.7"/>
-    
-    <!-- Contenedor/Carga -->
-    <rect x="130" y="60" width="200" height="120" rx="15" fill="url(#truckGradient)" stroke="#1565C0" stroke-width="6"/>
-    
-    <!-- Detalles del contenedor -->
-    <line x1="150" y1="70" x2="150" y2="170" stroke="#1565C0" stroke-width="4" opacity="0.5"/>
-    <line x1="190" y1="70" x2="190" y2="170" stroke="#1565C0" stroke-width="4" opacity="0.5"/>
-    <line x1="230" y1="70" x2="230" y2="170" stroke="#1565C0" stroke-width="4" opacity="0.5"/>
-    <line x1="270" y1="70" x2="270" y2="170" stroke="#1565C0" stroke-width="4" opacity="0.5"/>
-    <line x1="310" y1="70" x2="310" y2="170" stroke="#1565C0" stroke-width="4" opacity="0.5"/>
-    
-    <!-- Ruedas -->
-    <circle cx="50" cy="200" r="35" fill="#263238" stroke="#FFFFFF" stroke-width="6"/>
-    <circle cx="50" cy="200" r="18" fill="#546E7A"/>
-    
-    <circle cx="170" cy="200" r="35" fill="#263238" stroke="#FFFFFF" stroke-width="6"/>
-    <circle cx="170" cy="200" r="18" fill="#546E7A"/>
-    
-    <circle cx="290" cy="200" r="35" fill="#263238" stroke="#FFFFFF" stroke-width="6"/>
-    <circle cx="290" cy="200" r="18" fill="#546E7A"/>
-  </g>
-  
-  <!-- Ícono de documento/gestión (clipboard) -->
-  <g transform="translate(320, 80)">
-    <rect x="0" y="20" width="100" height="130" rx="10" fill="#FFFFFF" stroke="#1565C0" stroke-width="5"/>
-    <rect x="30" y="0" width="40" height="30" rx="5" fill="#1565C0"/>
-    
-    <!-- Líneas de texto en el documento -->
-    <line x1="15" y1="50" x2="85" y2="50" stroke="#1976D2" stroke-width="5" stroke-linecap="round"/>
-    <line x1="15" y1="70" x2="85" y2="70" stroke="#1976D2" stroke-width="5" stroke-linecap="round"/>
-    <line x1="15" y1="90" x2="70" y2="90" stroke="#1976D2" stroke-width="5" stroke-linecap="round"/>
-    <line x1="15" y1="110" x2="85" y2="110" stroke="#1976D2" stroke-width="5" stroke-linecap="round"/>
-    <line x1="15" y1="130" x2="55" y2="130" stroke="#1976D2" stroke-width="5" stroke-linecap="round"/>
-  </g>
-  
-  <!-- Símbolo $ para representar gestión financiera -->
-  <g transform="translate(60, 320)">
-    <circle cx="30" cy="30" r="35" fill="#FFB300" stroke="#FFFFFF" stroke-width="5"/>
-    <text x="30" y="45" font-family="Arial, sans-serif" font-size="45" font-weight="bold" fill="#FFFFFF" text-anchor="middle">$</text>
-  </g>
+<svg width="512" height="512" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo TranspoGestión CL: pin con ruta (pasajeros y carga) sobre olas -->
+  <rect width="180" height="180" rx="36" fill="#4A5899"/>
+  <path d="M90 136 C 60 104 50 88 50 68 A 40 40 0 1 1 130 68 C 130 88 120 104 90 136 Z" fill="#FFFFFF"/>
+  <path d="M72 82 C 86 82 90 56 108 56" fill="none" stroke="#4A5899" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="72" cy="82" r="7.5" fill="#4A5899"/>
+  <circle cx="108" cy="56" r="7.5" fill="#4A5899"/>
+  <path d="M41 158 q 16 -9 32 0 t 32 0 t 32 0" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
 </svg>

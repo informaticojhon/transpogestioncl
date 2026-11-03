@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../repositories/auth_repository.dart';
+import '../utils/app_logo.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -39,24 +40,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
+                  // Sobre el fondo índigo, una sombra separa el logo del degradado.
+                  DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.directions_bus_filled, size: 44, color: Colors.white),
-                        SizedBox(width: 12),
-                        Icon(Icons.local_shipping, size: 44, color: Colors.white),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 8)),
                       ],
                     ),
+                    child: const AppLogo(size: 120),
                   ),
                   const SizedBox(height: 36),
                   const Text(
-                    'TranspoGestionCL',
+                    'TranspoGestión CL',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,

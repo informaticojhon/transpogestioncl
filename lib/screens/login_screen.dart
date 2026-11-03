@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../repositories/auth_repository.dart';
+import '../utils/app_logo.dart';
 import '../utils/login_lockout.dart';
 import '../utils/validators.dart';
 
@@ -117,13 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(color: colorScheme.primaryContainer, shape: BoxShape.circle),
-                            child: Icon(Icons.business_center_rounded, size: 32, color: colorScheme.primary),
-                          ),
-                        ),
+                        const Center(child: AppLogo(size: 64)),
                         const SizedBox(height: 20),
                         Text(
                           'Bienvenido de vuelta',
