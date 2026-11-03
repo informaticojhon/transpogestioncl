@@ -459,13 +459,22 @@ class SupabaseRepository {
         .eq('empresa_id', empresaId);
   }
 
-  Future<void> eliminarTodosLosServicios() async {
+  /// Vuelve a insertar un servicio recién eliminado (botón "Deshacer"),
+  /// con el mismo id, autor y fecha de creación que tenía.
+  Future<void> restaurarServicio(Map<String, dynamic> servicio) async {
     final empresaId = await getEmpresaId();
     if (empresaId == null) throw Exception('Usuario no autenticado');
 
-    await supabase
-        .from('servicios')
-        .delete()
-        .eq('empresa_id', empresaId);
+    await supabase.from('servicios').insert({
+      'id': servicio['id'],
+      'user_id': servicio['user_id'],
+      'fecha': servicio['fecha'],
+      'valor': servicio['valor'],
+      'quien': servicio['quien'],
+      'empresa': servicio['empresa'],
+      'tipo': servicio['tipo'],
+      'created_at': servicio['created_at'],
+      'empresa_id': empresaId,
+    });
   }
 }

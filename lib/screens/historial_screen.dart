@@ -158,63 +158,43 @@ class _HistorialScreenState extends State<HistorialScreen> {
     });
   }
 
-  Future<void> _eliminarServicio(int id) async {
-    try {
-      await _serviciosRepository.eliminarServicio(id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Servicio eliminado correctamente')),
-        );
-      }
-      _cargarServicios(reset: true);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar: $e')),
-        );
-      }
-    }
-  }
+  /// Elimina un servicio y ofrece "Deshacer" por unos segundos, que lo
+  /// vuelve a insertar tal cual estaba.
+  Future<void> _eliminarServicio(Map<String, dynamic> servicio) async {
+    // El Dismissible ya lo sacó de la pantalla; se quita de la lista
+    // para que no vuelva a dibujarse mientras se recarga.
+    setState(() => _servicios.removeWhere((s) => s['id'] == servicio['id']));
+    final messenger = ScaffoldMessenger.of(context);
 
-  Future<void> _eliminarTodoElHistorial() async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ Confirmar eliminación'),
-        content: const Text(
-          '¿Estás seguro de que deseas eliminar TODO el historial?\n\nEsta acción no se puede deshacer.',
+    try {
+      await _serviciosRepository.eliminarServicio(servicio['id'] as int);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+      if (mounted) _cargarServicios(reset: true);
+      return;
+    }
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Servicio de ${servicio['empresa']} eliminado'),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'DESHACER',
+          onPressed: () => _deshacerEliminacion(servicio, messenger),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Eliminar todo'),
-          ),
-        ],
       ),
     );
+  }
 
-    if (confirmar == true) {
-      try {
-        await _serviciosRepository.eliminarTodosLosServicios();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Historial eliminado completamente')),
-          );
-          _cargarServicios(reset: true);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar historial: $e')),
-          );
-        }
-      }
+  Future<void> _deshacerEliminacion(Map<String, dynamic> servicio, ScaffoldMessengerState messenger) async {
+    try {
+      await _serviciosRepository.restaurarServicio(servicio);
+      messenger.showSnackBar(const SnackBar(content: Text('Servicio restaurado')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo restaurar: $e')));
     }
+    if (mounted) _cargarServicios(reset: true);
   }
 
   Future<void> _exportar(_FormatoExport formato) async {
@@ -362,12 +342,6 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       ),
                     ],
                   ),
-          if (_servicios.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_forever),
-              tooltip: 'Eliminar todo el historial',
-              onPressed: _eliminarTodoElHistorial,
-            ),
         ],
       ),
       body: _cargando
@@ -489,7 +463,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                         );
                                       },
                                       onDismissed: (direction) {
-                                        _eliminarServicio(servicioId);
+                                        _eliminarServicio(Map<String, dynamic>.from(servicio as Map));
                                       },
                                       background: Container(
                                         color: Colors.red,

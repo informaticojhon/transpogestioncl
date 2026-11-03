@@ -96,7 +96,7 @@ class ServiciosRepository {
     await _supabaseRepo.eliminarServicio(id);
   }
 
-  Future<void> eliminarTodosLosServicios() async {
-    await _supabaseRepo.eliminarTodosLosServicios();
+  Future<void> restaurarServicio(Map<String, dynamic> servicio) async {
+    await _supabaseRepo.restaurarServicio(servicio);
   }
 }
